@@ -10,16 +10,27 @@ class Particle():
         self.pot = 0
         self.real_pot = 0
 
+    def reset(self):
+        self.pot = 0
+        self.real_pot = 0
+
 
 class Cell():
 
-    def __init__(self, level, size, center, particles, cell_limit, surface_number, parent=None):
+    def __init__(self, level, size, center, particles, cell_limit, surface_number, surface, parent=None):
         self.level = level
         self.size = size
         self.center = center
         self.particles = particles
         self.cell_limit = cell_limit
         self.surface_number = surface_number
+        self.surface = surface
+        self.inner_circle = center + (math.sqrt(2))*(size/2)*surface
+        self.outer_circle = center + (4 - math.sqrt(2))*(size/2)*surface
+        self.inner_check = [Particle(point, 0) for point in self.outer_circle]
+        self.outer_check = [Particle(point, 0) for point in self.inner_circle]
+        self.inner_equi = [Particle(point, 0) for point in self.outer_circle]
+        self.outer_equi = [Particle(point, 0) for point in self.inner_circle]
         self.parent = parent
         self.children = [None]*4
         self.signs = np.array([[-1, -1], [1, -1], [-1, 1], [1, 1]])
