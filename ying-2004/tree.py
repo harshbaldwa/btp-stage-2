@@ -32,7 +32,7 @@ class Cell():
         self.inner_equi = [Particle(point, 0) for point in self.outer_circle]
         self.outer_equi = [Particle(point, 0) for point in self.inner_circle]
         self.parent = parent
-        self.children = [None]*4
+        self.children = []
         self.signs = np.array([[-1, -1], [1, -1], [-1, 1], [1, 1]])
         self.near_cells = []
         # self.children = [None]*8
@@ -42,17 +42,17 @@ class Cell():
         if len(self.particles) > self.cell_limit:
             for i in range(4):
             # for i in range(8):
-                self.children[i] = Cell(self.level+1, self.size/2, self.center+self.size/4*self.signs[i], [particle for particle in self.particles if all((particle.position-self.center)*self.signs[i] >= 0)], self.cell_limit, self.surface_number, self)
+                self.children.append(Cell(self.level+1, self.size/2, self.center+self.size/4*self.signs[i], [particle for particle in self.particles if all((particle.position-self.center)*self.signs[i] >= 0)], self.cell_limit, self.surface_number, self.surface, self))
             
             for i in range(4):
             # for i in range(8):
-                self.children[i].associates.extend(self.children[:i]+self.children[i+1:])
+                self.children[i].near_cells.extend(self.children[:i]+self.children[i+1:])
 
             for child in self.children:
                 child.split()
 
     def is_parent(self):
-        return not self.children[0] == None
+        return not len(self.children) == 0
     
     def depth(self):
         if not self.is_parent():
@@ -98,11 +98,11 @@ class Cell():
         if self.parent:
             for near_cell in self.parent.near_cells:
                 if not near_cell.is_parent():
-                    if self.is_adjacent(near_cell):
+                    if self.near_range(near_cell):
                         self.near_cells.append(near_cell)
                 else:
                     for child in near_cell.children:
-                        if self.is_adjacent(child):
+                        if self.near_range(child):
                             self.near_cells.append(child)
 
         if self.is_parent():
@@ -118,7 +118,9 @@ class Tree():
         self.depth = 0
 
     def build(self, size, center, particles, cell_limit, surface_number):
-        root = Cell(0, size, center, particles, cell_limit, surface_number)
+        theta = np.linspace(0, 2*np.pi, surface_number, False)
+        surface = np.array([np.cos(theta), np.sin(theta)]).T
+        root = Cell(0, size, center, particles, cell_limit, surface_number, surface)
 
         root.split()
         self.depth = root.depth()
