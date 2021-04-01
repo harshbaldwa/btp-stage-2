@@ -24,14 +24,14 @@ def u_w_list(b, kind):
         for cell in Ub:
             particle.pot += kind.direct(cell.particles, 
                                           particle.position)
-            # if all(b.center == [0.125, 0.625]):
-            #     print("Direct - {} - {}".format(cell.center, kind.direct(cell.particles, particle.position)))
+            if all(b.center == [0.125, 0.625]):
+                print("Direct - {} - {}".format(cell.center, kind.direct(cell.particles, particle.position)))
 
         for cell in Wb:
             particle.pot += kind.direct(cell.inner_equi,
                                           particle.position)
-            # if all(b.center == [0.125, 0.625]):
-            #     print("Multipole - {} - {}".format(cell.center, kind.direct(cell.inner_equi, particle.position)))
+            if all(b.center == [0.125, 0.625]):
+                print("Multipole - {} - {}".format(cell.center, kind.direct(cell.inner_equi, particle.position)))
 
 
 def v_list(b, kind):
@@ -41,6 +41,8 @@ def v_list(b, kind):
                 for child in near_cell.children:
                     if not b.near_range(child):
                         kind.M2L_check(child, b)
+                        if all(b.center == [0.125, 0.625]):
+                            print("V List - {} - {}".format(child.center, b.inner_check[0].pot))
 
 
 
@@ -88,5 +90,5 @@ def compute_value(tree, kind):
         for particle in cell.particles:
             particle.pot += kind.direct(cell.outer_equi,
                                      particle.position)
-            # if all(cell.center == [0.125, 0.625]):
-            #     print("Local - {} - {}".format(cell.center, kind.direct(cell.outer_equi, particle.position)))
+            if all(cell.center == [0.125, 0.625]):
+                print("Local - {} - {}".format(cell.center, kind.direct(cell.outer_equi, particle.position)))

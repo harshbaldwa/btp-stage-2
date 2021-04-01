@@ -24,9 +24,9 @@ def error(particles):
     
     return math.sqrt(error_num/error_den)
 
-n=100
-positions = np.random.rand(n, 2)
-# positions = np.array([[0.125, 0.875], [0.125, 0.625], [0.625, 0.375], [0.625, 0.125]])
+n = 4
+# positions = np.random.rand(n, 2)
+positions = np.array([[0.125, 0.875], [0.125, 0.625], [0.625, 0.375], [0.625, 0.125]])
 
 particles = []
 
@@ -34,12 +34,12 @@ for i in range(n):
     particles.append(tree.Particle(positions[i], 1))
 
 t = tree.Tree()
-t.build(1, np.array([0.5, 0.5]), particles, 5, 16)
+t.build(1, np.array([0.5, 0.5]), particles, 1, 4)
 algo.compute_value(t, kind)
 
 direct(particles)
 
-print("Error - {}".format(error(particles)))
+# print("Error - {}".format(error(particles)))
 
-print("Potential C - {}".format(particles[1].pot))
-print("Potential A - {}".format(particles[1].real_pot))
+# print("Potential C - {}".format(particles[1].pot))
+# print("Potential A - {}".format(particles[1].real_pot))

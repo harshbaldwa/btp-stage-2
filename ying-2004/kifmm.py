@@ -9,7 +9,7 @@ def direct(particles, point):
             r = point - particle.position
             dist = (r[0]**2 + r[1]**2)**0.5
 
-            value += particle.strength/(2*math.pi)*math.log(1/dist)
+            value += particle.strength*math.log(1/dist)/(2*math.pi)
 
     return value
 
