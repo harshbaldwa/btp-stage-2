@@ -99,11 +99,12 @@ if __name__ == "__main__":
     indices = [None]*len(x)
 
     get_bin_count(x, y, level, bin_count, bin_offset)
-    cum_bin_count(bin_count, start)
-    start_indices(x, y, level, bin_offset, start, indices)
-    
     print(bin_count)
-    print(start)
-    print(bin_offset)
-    print(indices)
+    # cum_bin_count(bin_count, start)
+    # start_indices(x, y, level, bin_offset, start, indices)
+    
+    # print(bin_count)
+    # print(start)
+    # # print(bin_offset)
+    # print(indices)
 
