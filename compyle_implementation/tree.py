@@ -14,10 +14,11 @@ def bits_interleaving(b_len, b1, b2, inter):
         else:
             inter[i] = b2[i//2]
 
+
 @annotate(int='n, b_len', return_='intp')
 def dec2bin(n, b_len):
     binary = declare('matrix(1, "int")')
-    # binary = declare('matrix({}, "int")'.format(b_len))
+    # binary = declare('matrix(%s, "int")'%(b_len))
     i = declare('int')
     for i in range(b_len):
         binary[b_len-i-1] = n%2
@@ -35,6 +36,7 @@ def bin2dec(b, b_len):
     
     return n
 
+
 @annotate(double='x, y, x_min, y_min, length', b_len='int', return_='int')
 def get_cell_id(x, y, b_len, x_min=0.0, y_min=0.0, length=1):
     id = declare('int')
@@ -42,9 +44,10 @@ def get_cell_id(x, y, b_len, x_min=0.0, y_min=0.0, length=1):
     inter = declare('matrix(2, "int")')
     # how to have variable size of array declared inside
     # bx, by = declare('matrix({})'.format(b_len), 2)
-    # inter = declare('matrix({})'.format(2*b_len))
+    # bx, by = declare('matrix(%s)'%(b_len), 2)
+    # inter = declare('matrix(%s)'%(2*b_len))
     nx, ny = declare('int', 2)
-    # how to make this int?
+    # how to make this int
     nx = (b_len*2*(x-x_min)) // length
     ny = (b_len*2*(y-y_min)) // length
     bx = dec2bin(nx, b_len)
@@ -61,18 +64,48 @@ def get_bin_count(i, x, y, b_len, bin_count, bin_offset):
     bin_offset[i] = bin_count[id]
     bin_count[id] += 1
 
+
+@annotate(i='int', bin_count='intp', return_='int')
+def input_bin_count(i, bin_count):
+    if i==0:
+        return 0
+    else:
+        return bin_count[i-1]
+
+
+@annotate(int='i, item', start='intp')
+def output_bin_count(i, item, start):
+    start[i] = item
+
+
+@annotate(int='i, b_len', intp='bin_offset, start, indices', doublep='x, y')
+def start_indices(i, x, y, b_len, bin_offset, start, indices):
+    id = declare('int')
+    id = get_cell_id(x[i], y[i], b_len, 0, 0, 1)
+    indices[start[id] + bin_offset[i]] = i
+
+
+
 x = np.array([0.25, 0.75, 0.75, 0.25, 0.2])
 y = np.array([0.75, 0.25, 0.75, 0.25, 0.2])
 level = 1
 b_len = 2**(level-1)
 
 bin_count = np.zeros(4**level, dtype=np.int32)
+# bin_count = np.arange(1, 10, dtype=np.int32)
 start = np.zeros_like(bin_count, dtype=np.int32)
 bin_offset = np.zeros_like(x, dtype=np.int32)
 indices = np.zeros_like(x, dtype=np.int32)
 
 x, y, bin_count, start, bin_offset, indices = wrap(x, y, bin_count, start, bin_offset, indices, backend=backend)
-eget_bin_count = Elementwise(get_bin_count, backend=backend)
-eget_bin_count(x, y, b_len, bin_count, bin_offset)
+# eget_bin_count = Elementwise(get_bin_count, backend=backend)
+# eget_bin_count(x, y, b_len, bin_count, bin_offset)
 
-print(bin_count)
+
+cum_bin_count = Scan(input_bin_count, output_bin_count, 'a+b', dtype=np.int32, backend=backend)
+cum_bin_count(bin_count=bin_count, start=start)
+bin_count.pull()
+start.pull()
+
+estart_indices = Elementwise(start_indices, backend=backend)
+estart_indices(x, y, b_len, bin_offset, start, indices)
