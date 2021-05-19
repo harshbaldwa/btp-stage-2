@@ -1,59 +1,34 @@
 from compyle.api import annotate, wrap, Elementwise, Reduction, Scan
 from compyle.types import declare
+from compyle.low_level import cast
 from math import floor
 import numpy as np
 
 backend = 'cython'
 
-@annotate(b_len='int', intp='b1, b2, inter')
-def bits_interleaving(b_len, b1, b2, inter):
-    i = declare('int')
-    for i in range(2*b_len):
-        if i%2 == 0:
-            inter[i] = b1[i//2]
-        else:
-            inter[i] = b2[i//2]
-
-
-@annotate(int='n, b_len', return_='intp')
-def dec2bin(n, b_len):
-    binary = declare('matrix(1, "int")')
-    # binary = declare('matrix(%s, "int")'%(b_len))
-    i = declare('int')
-    for i in range(b_len):
-        binary[b_len-i-1] = n%2
-        n = n//2
-
-    return binary
-
-
-@annotate(b_len='int', b='intp', return_='int')
-def bin2dec(b, b_len):
-    n, i = declare('int', 2)
-    n = 0
-    for i in range(b_len):
-        n += b[i]*2**(b_len-i-1)
-    
-    return n
-
 
 @annotate(double='x, y, x_min, y_min, length', b_len='int', return_='int')
 def get_cell_id(x, y, b_len, x_min=0.0, y_min=0.0, length=1):
     id = declare('int')
-    bx, by = declare('matrix(1, "int")', 2)
-    inter = declare('matrix(2, "int")')
-    # how to have variable size of array declared inside
-    # bx, by = declare('matrix({})'.format(b_len), 2)
-    # bx, by = declare('matrix(%s)'%(b_len), 2)
-    # inter = declare('matrix(%s)'%(2*b_len))
     nx, ny = declare('int', 2)
-    # how to make this int
-    nx = (b_len*2*(x-x_min)) // length
-    ny = (b_len*2*(y-y_min)) // length
-    bx = dec2bin(nx, b_len)
-    by = dec2bin(ny, b_len)
-    bits_interleaving(b_len, bx, by, inter)
-    id = bin2dec(inter, 2*b_len)
+    nx = cast(floor((b_len*2*(x-x_min)) / length), 'int')
+    ny = cast(floor((b_len*2*(y-y_min)) / length), 'int')
+    
+    b, s = declare('matrix(4, "int")', 2)
+    s = [1, 2, 4, 8]
+    b = [0x55555555, 0x33333333, 0x0F0F0F0F, 0x00FF00FF]
+        
+    nx = (nx | (nx << s[3])) & b[3]
+    nx = (nx | (nx << s[2])) & b[2]
+    nx = (nx | (nx << s[1])) & b[1]
+    nx = (nx | (nx << s[0])) & b[0]
+    
+    ny = (ny | (ny << s[3])) & b[3]
+    ny = (ny | (ny << s[2])) & b[2]
+    ny = (ny | (ny << s[1])) & b[1]
+    ny = (ny | (ny << s[0])) & b[0]
+
+    id = (nx << 1) | ny
     return id
 
 
@@ -92,20 +67,23 @@ level = 1
 b_len = 2**(level-1)
 
 bin_count = np.zeros(4**level, dtype=np.int32)
-# bin_count = np.arange(1, 10, dtype=np.int32)
 start = np.zeros_like(bin_count, dtype=np.int32)
 bin_offset = np.zeros_like(x, dtype=np.int32)
 indices = np.zeros_like(x, dtype=np.int32)
 
 x, y, bin_count, start, bin_offset, indices = wrap(x, y, bin_count, start, bin_offset, indices, backend=backend)
-# eget_bin_count = Elementwise(get_bin_count, backend=backend)
-# eget_bin_count(x, y, b_len, bin_count, bin_offset)
+
+eget_bin_count = Elementwise(get_bin_count, backend=backend)
+eget_bin_count(x, y, b_len, bin_count, bin_offset)
 
 
 cum_bin_count = Scan(input_bin_count, output_bin_count, 'a+b', dtype=np.int32, backend=backend)
 cum_bin_count(bin_count=bin_count, start=start)
-bin_count.pull()
-start.pull()
 
 estart_indices = Elementwise(start_indices, backend=backend)
 estart_indices(x, y, b_len, bin_offset, start, indices)
+
+print(bin_count)
+print(start)
+print(bin_offset)
+print(indices)
