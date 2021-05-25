@@ -1,6 +1,6 @@
 import numpy as np
 
-LEVEL = 10
+LEVEL = 12
 
 total_blocks = 0
 for level in range(LEVEL, 1, -1):
