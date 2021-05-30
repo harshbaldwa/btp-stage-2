@@ -2,10 +2,10 @@ from compyle.api import annotate, wrap, Elementwise, Reduction, Scan, get_config
 from compyle.types import declare
 from compyle.low_level import cast, atomic_inc
 from compyle.parallel import serial
-from math import atan2, cos, log, sin, sqrt, floor
+from math import atan2, cos, log, sin, sqrt, floor, log
 import numpy as np
 import time
-
+import argparse
 
 @annotate(double="x, y, x_min, y_min, length", b_len="int", return_="int")
 def get_cell_id(x, y, b_len, x_min=0.0, y_min=0.0, length=1):
@@ -37,6 +37,10 @@ def get_cell_id(x, y, b_len, x_min=0.0, y_min=0.0, length=1):
     id = (nx << 1) | ny
     return id
 
+@annotate(i='int', bin_count='intp')
+def initial_bin_count(i, bin_count):
+    bin_count[i] = 0
+
 @serial
 @annotate(int="i, b_len", intp="bin_count, bin_offset", doublep="x, y")
 def get_bin_count(i, x, y, b_len, bin_count, bin_offset):
@@ -59,7 +63,11 @@ def output_bin_count(i, item, start_index):
     start_index[i] = item
 
 
-@annotate(int="i, b_len", intp="bin_offset, start_index, indices", doublep="x, y")
+@annotate(
+    int="i, b_len", 
+    intp="bin_offset, start_index, indices", 
+    doublep="x, y"
+)
 def start_indices(i, x, y, b_len, bin_offset, start_index, indices):
     id = declare("int")
     id = get_cell_id(x[i], y[i], b_len, 0, 0, 1)
@@ -121,8 +129,15 @@ def log_complex(z_real, z_imag):
 
 
 
-@annotate(int='i, p', intp='start, bin_count, indices', doublep='multipole_real, multipole_imag, x_part, y_part, prop_part, cx, cy')
-def multipole_finest(i, multipole_real, multipole_imag, start, bin_count, indices, x_part, y_part, prop_part, cx, cy, p):
+@annotate(
+    int='i, p', 
+    intp='start, bin_count, indices', 
+    doublep='multipole_real, multipole_imag, x_part, y_part, prop_part, cx, cy'
+)
+def multipole_finest(
+    i, multipole_real, multipole_imag, start, bin_count, 
+    indices, x_part, y_part, prop_part, cx, cy, p
+):
     j, pid, l, cid = declare("int", 3)
     complex_num = declare("matrix(2)")
     cid = cast(floor(i / (p + 1)), "int")
@@ -134,7 +149,8 @@ def multipole_finest(i, multipole_real, multipole_imag, start, bin_count, indice
         if l == 0:
             multipole_real[i] += prop_part[pid]
         else:
-            complex_power(x_part[pid]-cx[cid], y_part[pid]-cy[cid], l, -prop_part[pid]/l, complex_num)
+            complex_power(x_part[pid]-cx[cid], y_part[pid]-cy[cid], 
+                          l, -prop_part[pid]/l, complex_num)
             multipole_real[i] += complex_num[0]
             multipole_imag[i] += complex_num[1]
 
@@ -145,16 +161,8 @@ def multipole_finest(i, multipole_real, multipole_imag, start, bin_count, indice
     doublep="multipole_p_real, multipole_p_imag, multipole_c_real, multipole_c_imag, px, py, cx, cy",
 )
 def transfer_multipole(
-    i,
-    multipole_p_real,
-    multipole_p_imag,
-    multipole_c_real,
-    multipole_c_imag,
-    px,
-    py,
-    cx,
-    cy,
-    p,
+    i, multipole_p_real, multipole_p_imag, multipole_c_real, 
+    multipole_c_imag, px, py, cx, cy, p,
 ):
     j, c_id, k, l, center_p_id, center_c_id = declare("int", 6)
     complex_num = declare("matrix(2)")
@@ -200,23 +208,9 @@ def transfer_multipole(
     length="double",
 )
 def compute_cell_value(
-    cid,
-    cell_level,
-    pid,
-    value,
-    prop_part,
-    x_part,
-    y_part,
-    multipole_real,
-    multipole_imag,
-    cx,
-    cy,
-    level,
-    length,
-    p,
-    bin_count,
-    start,
-    indices,
+    cid, cell_level, pid, value, prop_part, x_part, y_part, 
+    multipole_real, multipole_imag, cx, cy, level, length, 
+    p, bin_count, start, indices,
 ):
     i, j = declare("int", 2)
     complex_num = declare("matrix(2)")
@@ -240,23 +234,9 @@ def compute_cell_value(
     elif cell_level < level:
         for i in range(4):
             compute_cell_value(
-                4 * (cid - 4 ** level) + i,
-                cell_level + 1,
-                pid,
-                value,
-                prop_part,
-                x_part,
-                y_part,
-                multipole_real,
-                multipole_imag,
-                cx,
-                cy,
-                level,
-                length,
-                p,
-                bin_count,
-                start,
-                indices,
+                4 * (cid - 4 ** level) + i, cell_level + 1, pid, value, 
+                prop_part, x_part, y_part, multipole_real, multipole_imag, 
+                cx, cy, level, length, p, bin_count, start, indices,
             )
     else:
         for i in range(bin_count[cid]):
@@ -274,44 +254,16 @@ def compute_cell_value(
     length="double",
 )
 def compute_value(
-    i,
-    value,
-    prop_part,
-    x_part,
-    y_part,
-    multipole_real,
-    multipole_imag,
-    cx,
-    cy,
-    level,
-    length,
-    p,
-    bin_count,
-    start,
-    indices,
-    total_blocks,
+    i, value, prop_part, x_part, y_part, multipole_real, multipole_imag, 
+    cx, cy, level, length, p, bin_count, start, indices, total_blocks,
 ):
     j = declare("int")
     value[i] = 0
     for j in range(16):
         compute_cell_value(
-            total_blocks - 16 + j,
-            2,
-            i,
-            value,
-            prop_part,
-            x_part,
-            y_part,
-            multipole_real,
-            multipole_imag,
-            cx,
-            cy,
-            level,
-            length,
-            p,
-            bin_count,
-            start,
-            indices,
+            total_blocks - 16 + j, 2, i, value, prop_part, x_part, 
+            y_part, multipole_real, multipole_imag, cx, cy, level, 
+            length, p, bin_count, start, indices,
         )
 
 @annotate(int='i, n', doublep='value, x_part, y_part, prop_part')
@@ -320,31 +272,22 @@ def direct_method(i, value, x_part, y_part, prop_part, n):
     value[i] = 0
     for j in range(n):
         if i != j:
-            value[i] += prop_part[j]*log_complex(x_part[i]-x_part[j], y_part[i]-y_part[j])
+            value[i] += prop_part[j] * log_complex(
+                x_part[i]-x_part[j], y_part[i]-y_part[j]
+            )
 
 
-if __name__ == "__main__":
-
-    backend = "cython"
-    get_config().use_openmp = True
-    direct_calc = True
-    parallel_direct = True
-
-    n = 8000
-    x = np.random.random(n)
-    y = np.random.random(n)
-    prop_part = np.random.random(n)
-    # npzfile = np.load("problem.npz")
-    # x = npzfile['x']
-    # y = npzfile['y']
-    # prop_part = npzfile['prop_part']
-    x_direct = x.copy()
-    y_direct = y.copy()
-    prop_part_direct = prop_part.copy()
-    level = 7
+def solver(n, level, p, seed, backend):
+    if seed != -1:
+        np.random.seed(seed)
+    
+    rnd = np.random.random((3, n))
+    x = rnd[0]
+    y = rnd[1]
+    prop = rnd[2]
     length = 1
     b_len = 2 ** (level - 1)
-    p = 6
+
     total_blocks = int(16 * (4 ** (level - 1) - 1) / 3)
 
     bin_count = np.zeros(4 ** level, dtype=np.int32)
@@ -366,113 +309,106 @@ if __name__ == "__main__":
     value = np.zeros_like(x)
     value_real = np.zeros_like(x)
 
-    (
-        x,
-        y,
-        bin_count,
-        start,
-        bin_offset,
-        indices,
-        cx,
-        cy,
-        multipole_real,
-        multipole_imag,
-        value,
-    ) = wrap(
-        x,
-        y,
-        bin_count,
-        start,
-        bin_offset,
-        indices,
-        cx,
-        cy,
-        multipole_real,
-        multipole_imag,
-        value,
-        backend=backend,
+    (x, y, bin_count, start, bin_offset, indices, cx, cy, 
+    multipole_real, multipole_imag, value, value_real) = wrap(
+        x, y, bin_count, start, bin_offset, indices, cx, cy, 
+        multipole_real, multipole_imag, value, value_real, 
+        backend=backend
     )
 
-
+    einitial_bin_count = Elementwise(initial_bin_count, backend=backend)
     eget_bin_count = Elementwise(get_bin_count, backend=backend)
     cum_bin_count = Scan(
-        input_bin_count, output_bin_count, "a+b", dtype=np.int32, backend=backend
+        input_bin_count, output_bin_count, "a+b", dtype=np.int32, 
+        backend=backend
     )
     estart_indices = Elementwise(start_indices, backend=backend)
     emultipole_finest = Elementwise(multipole_finest, backend=backend)
     etransfer_multipole = Elementwise(transfer_multipole, backend=backend)
     ecompute_value = Elementwise(compute_value, backend=backend)
+    edirect_method = Elementwise(direct_method, backend=backend)
 
+    time_f = 0
+    f_count = 0
+    
+    while (time_f < 5):
+    
+        fmm_start = time.time()
 
-    time_start_fmm = time.time()
+        einitial_bin_count(bin_count)
+        eget_bin_count(x, y, b_len, bin_count, bin_offset)
+        cum_bin_count(bin_count=bin_count, start_index=start)
+        estart_indices(x, y, b_len, bin_offset, start, indices)
+        emultipole_finest(
+            multipole_real[:4**level*(p+1)], multipole_imag[:4**level*(p+1)], 
+            start, bin_count, indices, x, y, prop, cx[:4**level], cy[:4**level], p
+        )
+        for l in range(level, 2, -1):
+            index1 = int((4 ** (level - l) - 1) / 3) * 4 ** (l + 1)
+            index2 = int((4 ** (level - l + 1) - 1) / 3) * 4 ** l
+            index3 = int((4 ** (level - l + 2) - 1) / 3) * 4 ** (l - 1)
+            etransfer_multipole(
+                multipole_real[index2 * (p + 1) : index3 * (p + 1)],
+                multipole_imag[index2 * (p + 1) : index3 * (p + 1)],
+                multipole_real[index1 * (p + 1) : index2 * (p + 1)],
+                multipole_imag[index1 * (p + 1) : index2 * (p + 1)],
+                cx[index2:index3], cy[index2:index3], cx[index1:index2],
+                cy[index1:index2], p
+            )
 
-    eget_bin_count(x, y, b_len, bin_count, bin_offset)
-    cum_bin_count(bin_count=bin_count, start_index=start)
-    estart_indices(x, y, b_len, bin_offset, start, indices)
-    emultipole_finest(multipole_real[:4**level*(p+1)], multipole_imag[:4**level*(p+1)], start, bin_count, indices, x, y, prop_part, cx[:4**level], cy[:4**level], p)
-    for l in range(level, 2, -1):
-        index1 = int((4 ** (level - l) - 1) / 3) * 4 ** (l + 1)
-        index2 = int((4 ** (level - l + 1) - 1) / 3) * 4 ** l
-        index3 = int((4 ** (level - l + 2) - 1) / 3) * 4 ** (l - 1)
-        etransfer_multipole(
-            multipole_real[index2 * (p + 1) : index3 * (p + 1)],
-            multipole_imag[index2 * (p + 1) : index3 * (p + 1)],
-            multipole_real[index1 * (p + 1) : index2 * (p + 1)],
-            multipole_imag[index1 * (p + 1) : index2 * (p + 1)],
-            cx[index2:index3],
-            cy[index2:index3],
-            cx[index1:index2],
-            cy[index1:index2],
-            p,
+        ecompute_value(
+            value, prop, x, y, multipole_real, multipole_imag, cx, cy, 
+            level, length, p, bin_count, start, indices, total_blocks
         )
 
-    ecompute_value(
-        value,
-        prop_part,
-        x,
-        y,
-        multipole_real,
-        multipole_imag,
-        cx,
-        cy,
-        level,
-        length,
-        p,
-        bin_count,
-        start,
-        indices,
-        total_blocks,
-    )
+        fmm_stop = time.time()
 
-    time_stop_fmm = time.time()
+        time_f += fmm_stop - fmm_start
+        f_count += 1
 
-
-    print("done!")
-
-    if direct_calc:
-        time_start_direct = time.time()
-        if parallel_direct:
-            edirect_method = Elementwise(direct_method, backend=backend)
-            edirect_method(value_real, x_direct, y_direct, prop_part_direct, n)
-        else:
-            for i in range(n):
-                for j in range(n):
-                    if i != j:
-                        value_real[i] += prop_part_direct[j] * np.log(
-                            abs((x_direct[i] - x_direct[j]) + 1j * (y_direct[i] - y_direct[j]))
-                        )
-        time_stop_direct = time.time()
-
-        # error = np.sum((value_real - value) ** 2) / np.sum(value_real ** 2)
-        # error = np.mean(np.abs(value_real - value)) / np.mean(np.abs(value_real))
-        error = np.mean(np.abs(value_real - value))
-        print("Error - ", error)
+    time_d = 0
+    d_count = 0
     
-    print("Time (by fmm) - ", time_stop_fmm - time_start_fmm)
+    while (time_d < 5):
+
+        direct_start = time.time()
+        edirect_method(value_real, x, y, prop, n)
+        direct_stop = time.time()
+
+        time_d += direct_stop - direct_start
+        d_count += 1
+
+    error = np.mean(np.abs(value_real - value))
+    time_f = time_f/f_count
+    time_d = time_d/d_count
+
+    return error, time_f, time_d
+
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("n", help="number of particles", type=int)
+    parser.add_argument("-l", "--level", help="depth of tree",
+                        type=int)
+    parser.add_argument("-p", help="number of  multipole terms to use",
+                        type=int, default=10)
+    parser.add_argument("-b", "--backend", help="backend to use",
+                        default='cython')
+    parser.add_argument("-omp", "--openmp", help="use openmp for calculations",
+                        action="store_true")
+    parser.add_argument("-s", "--seed", help="seed for same problem",
+                        type=int, default=-1)
+    args = parser.parse_args()
     
-    if direct_calc:
-        print("Time (by direct) - ", time_stop_direct - time_start_direct)
-        print(
-            "Speedup - ",
-            (time_stop_direct - time_start_direct) / (time_stop_fmm - time_start_fmm),
-        )
+    if args.openmp:
+        get_config().use_openmp = True
+    
+    level = int(log(args.n) / log(4)) + 1
+
+    error, time_f, time_d = solver(args.n, args.level or level, args.p, args.seed, args.backend)
+    print(error)
+    print(time_f)
+    print(time_d)
+    print(time_d/time_f)
