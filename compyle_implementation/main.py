@@ -11,8 +11,8 @@ import argparse
 def get_cell_id(x, y, b_len, x_min=0.0, y_min=0.0, length=1):
     id = declare("int")
     nx, ny = declare("int", 2)
-    nx = cast(floor((b_len * 2 * (x - x_min)) / length), "int")
-    ny = cast(floor((b_len * 2 * (y - y_min)) / length), "int")
+    nx = cast(floor((b_len * (x - x_min)) / length), "int")
+    ny = cast(floor((b_len * (y - y_min)) / length), "int")
 
     b, s = declare('matrix(4, "int")', 2)
     s[0] = 1
@@ -138,7 +138,7 @@ def multipole_finest(
     i, multipole_real, multipole_imag, start, bin_count, 
     indices, x_part, y_part, prop_part, cx, cy, p
 ):
-    j, pid, l, cid = declare("int", 3)
+    j, pid, l, cid = declare("int", 4)
     complex_num = declare("matrix(2)")
     cid = cast(floor(i / (p + 1)), "int")
     l = i % (p+1)
@@ -286,7 +286,7 @@ def solver(n, level, p, seed, backend):
     y = rnd[1]
     prop = rnd[2]
     length = 1
-    b_len = 2 ** (level - 1)
+    b_len = 2 ** level
 
     total_blocks = int(16 * (4 ** (level - 1) - 1) / 3)
 
