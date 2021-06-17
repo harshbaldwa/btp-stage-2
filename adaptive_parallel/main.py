@@ -189,7 +189,7 @@ def calc_pseudoparticles(
 
 # need to do this for all levels 1-finest (both included) (need Vb for level 2 as well)
 @annotate(
-    int="i, level", associate_ids="longp", 
+    i="int", associate_ids="longp", level="intp",
     doublep="cx, cy, cz", double="length, x_min, y_min, z_min"
 )
 def find_associates(
@@ -198,7 +198,7 @@ def find_associates(
 ):
     ax, ay, az, dist_offset = declare("double", 4)
     b_len, j, k, l, count = declare("int")
-    b_len = 2**level
+    b_len = 2**level[i]
     dist_offset = length/b_len
     count = 0
     
@@ -209,7 +209,7 @@ def find_associates(
                     ax = cx[i] + j*dist_offset
                     ay = cy[i] + k*dist_offset
                     az = cz[i] + l*dist_offset
-                    if not ((ax > length) or (ay > length) or (az > length)):
+                    if ((ax < length) and (ay < length) and (az < length) and (ax > 0) and (ay > 0) and (az > 0)):
                         associate_ids[26*i + count] = get_cell_id(ax, ay, az, b_len, x_min, y_min, z_min, length)
                     else:
                         associate_ids[26*i + count] = -1
@@ -242,7 +242,7 @@ def is_well_separated(cx, cy, cz, ax, ay, az, cell_radius):
         return 0
 
 
-
+# all arrays of level at which being calculated, associates id parent level
 @annotate(
     doublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz",
     int="i, level, number_makino", associate_ids="longp", length="double"
@@ -264,10 +264,10 @@ def local_coeff(
         if a_id != -1:
             child_id = a_id << 3
             for k in range(8):
-                if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id+k], cy[child_id+k], cz[child_id+k], cell_radius) == 1):
+                if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], cell_radius) == 1):
                     for n in range(number_makino):
                         inner_value[i] += direct_computation(outer_value[child_id+n], outer_x[child_id+n], outer_y[child_id+n], outer_z[child_id+n], inner_x[i], inner_y[i], inner_z[i])
-
+                child_id += 1
 
 @annotate(
     doublep="inner_value, inner_x, inner_y, inner_z, l_list",
@@ -320,12 +320,38 @@ def transfer_local(
     innerc_value[i] += local_expansion(innerp_value, innerp_x, innerp_y, innerp_z, px[pid], py[pid], pz[pid], innerc_x[i], innerc_y[i], innerc_z[i], number_makino, level, length, pid*number_makino, l_list, l_limit)
 
 
+@annotate(
+    int="i, level, number_makino, l_limit",
+    doublep="cx, cy, cz, inner_value, inner_x, inner_y, inner_z, l_list, part_x, part_y, part_z, part_value, part_result",
+    length="double",
+    intp="bin_count, indices",
+    longp="start, associate_ids"
+)
+def compute_value(
+    i, cx, cy, cz, inner_value, inner_x, inner_y, inner_z, associate_ids, 
+    number_makino, level, length, l_list, l_limit, part_x, part_y, part_z, 
+    part_value, bin_count, start, indices, part_result
+):
+    j, k, l, aid, pid, p2id = declare("int", 6)
+    for j in range(bin_count[i]):
+        pid = indices[start[i] + k]
+        for k in range(26):
+            aid = associate_ids[i*26+j]
+            if aid != -1:
+                for l in range(bin_count[aid]):
+                    p2id = indices[start[aid] + l]
+                    if pid != p2id:
+                        part_result[pid] += direct_computation(part_value[p2id], part_x[p2id], part_y[p2id], part_z[p2id], part_x[pid], part_y[pid], part_z[pid])
+        
+        part_result[pid] += local_expansion(inner_value, inner_x, inner_y, inner_z, cx[i], cy[i], cz[i], part_x[pid], part_y[pid], part_z[pid], number_makino, level, length, i*number_makino, l_list, l_limit)
+
+
 ## testing part over here
 
 backend = 'cython'
 
 n = 2
-number_makino = 12
+number_makino = 4
 np.random.seed(0)
 rnd = np.random.random((4, n))
 x = rnd[0]
@@ -336,6 +362,9 @@ prop = np.ones(n)
 
 level = 4
 length = 1
+x_min = 0
+y_min = 0
+z_min = 0
 b_len = 2 ** level
 
 total_blocks = int(64 * (8 ** (level - 1) - 1) / 7)
@@ -363,7 +392,10 @@ inner_x = np.zeros(total_blocks*number_makino)
 inner_y = np.zeros(total_blocks*number_makino)
 inner_z = np.zeros(total_blocks*number_makino)
 
+associate_ids = np.zeros((total_blocks+8)*26, dtype=np.int64)
+
 sph_points, order = spherical_points(number_makino)
+sph_points = sph_points.astype(np.float64)
 l_limit = int(order/2)+1
 size_l_list = int(l_limit*(l_limit+1)/2) - 1
 l_list = np.zeros(size_l_list)
@@ -380,12 +412,14 @@ bin_offset = np.zeros_like(x, dtype=np.int32)
 indices = np.zeros_like(x, dtype=np.int32)
 
 count = 0
-sb = np.zeros(level, dtype=np.int32)
-for l in range(level, 0, -1):
-    sb[l-1] = count
+sb = np.zeros(level+1, dtype=np.int32)
+for l in range(level, -1, -1):
+    sb[l] = count
     count += 8**l
 
 sb = sb[::-1]
+
+result = np.zeros_like(x)
 
 einitial_bin_count = Elementwise(initial_bin_count, backend=backend)
 eget_bin_count = Elementwise(get_bin_count, backend=backend)
@@ -400,6 +434,7 @@ ecalc_pseudoparticles = Elementwise(calc_pseudoparticles, backend=backend)
 efind_associates = Elementwise(find_associates, backend=backend)
 elocal_coeff = Elementwise(local_coeff, backend=backend)
 etransfer_local = Elementwise(transfer_local, backend=backend)
+ecompute_value = Elementwise(compute_value, backend=backend)
 
 
 einitial_bin_count(bin_count)
@@ -407,7 +442,8 @@ eget_bin_count(x, y, z, b_len, bin_count, bin_offset)
 cum_bin_count(bin_count=bin_count, start_index=start)
 estart_indices(x, y, z, b_len, bin_offset, start, indices)
 
-esetting_pseudoparticles(cx, cy, cz, outer_x, outer_y, outer_z, inner_x, inner_y, inner_z, sph_points, length, level_list, number_makino)
+esetting_pseudoparticles(cx[:-8], cy[:-8], cz[:-8], outer_x, outer_y, outer_z, inner_x, inner_y, inner_z, sph_points, length, level_list[:-8], number_makino)
+efind_associates(cx, cy, cz, associate_ids, level_list, length, x_min, y_min, z_min)
 
 ecalc_pseudoparticles_fine(outer_value[sb[0]*number_makino:sb[1]*number_makino], outer_x[sb[0]*number_makino:sb[1]*number_makino], outer_y[sb[0]*number_makino:sb[1]*number_makino], outer_z[sb[0]*number_makino:sb[1]*number_makino], prop, x, y, z, cx[sb[0]:sb[1]], cy[sb[0]:sb[1]], cz[sb[0]:sb[1]], indices, start, bin_count, number_makino, length, level, l_limit, l_list)
 
@@ -420,3 +456,35 @@ for l in range(level-1, 1, -1):
     t2 = s2*number_makino
     ecalc_pseudoparticles(outer_value[t1:t2], outer_x[t1:t2], outer_y[t1:t2], outer_z[t1:t2], outer_value[t0:t1], outer_x[t0:t1], outer_y[t0:t1], outer_z[t0:t1], cx[s1:s2], cy[s1:s2], cz[s1:s2], number_makino, length, level, l_limit, l_list)
 
+# s0-s1 real level, s1-s2 parent level
+for l in range(2, level+1):
+    s0 = sb[level-l]
+    s1 = sb[level-l+1]
+    s2 = sb[level-l+2]
+    m0 = s0*number_makino
+    m1 = s1*number_makino
+    a1 = s1*26
+    a2 = s2*26
+    elocal_coeff(inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], cx[s0:s1], cy[s0:s1], cz[s0:s1], associate_ids[a1:a2], number_makino, l, length)
+
+# s0-s1 child level s1-s2 real level
+for l in range(2, level):
+    s0 = sb[level-l-1]
+    s1 = sb[level-l]
+    s2 = sb[level-l+1]
+    m0 = s0*number_makino
+    m1 = s1*number_makino
+    m2 = s2*number_makino
+    etransfer_local(inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], cx[s1:s2], cy[s1:s2], cz[s1:s2], inner_value[m1:m2], inner_x[m1:m2], inner_y[m1:m2], inner_z[m1:m2], l, length, number_makino, l_list, l_limit)
+
+
+s0 = sb[0]
+s1 = sb[1]
+m0 = s0*number_makino
+m1 = s1*number_makino
+a0 = s0*26
+a1 = s1*26
+
+print(inner_value[np.nonzero(inner_value)])
+
+# ecompute_value(cx[s0:s1], cy[s0:s1], cz[s0:s1], inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], associate_ids[a0:a1], number_makino, level, length, l_list, l_limit, x, y, z, prop, bin_count, start, indices, result)

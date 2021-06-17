@@ -3,7 +3,7 @@ import numpy as np
 LEVEL = 8
 
 total_blocks = 0
-for level in range(LEVEL, 1, -1):
+for level in range(LEVEL, 0, -1):
     total_blocks += 8**level
 
 cx = np.zeros(total_blocks)
@@ -13,7 +13,7 @@ level_matrix = np.zeros(total_blocks)
 
 offset = 0
 
-for level in range(LEVEL, 1, -1):
+for level in range(LEVEL, 0, -1):
     for idx in range(8**level):
         a = format(idx, '060b')
         x = int(a[2::3], 2)
