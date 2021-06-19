@@ -176,10 +176,11 @@ def calc_pseudoparticles_fine(
             for l in range(1, l_limit):
                 l_result = calc_legendre(l_list, cos_gamma, l+1, start_id)
                 pseudo_result += l_result*(2*l+1)*(rr**l)*part_value[pid]
+                printf("%d, %d, %.16f, %f, %f, %.16f, %d, %d\n", pid, i, l_result, l_list[0], l_list[1], cos_gamma, l+1, start_id)
                 start_id += l+1
+        # print(pid, i, p2c_l)
         
     pseudo_value[i] = pseudo_result/number_makino
-    
 
 
 @annotate(
@@ -330,7 +331,7 @@ def local_expansion(
         i2c[2] = inner_z[start_inner] - cz
         result += inner_value[start_inner]
         if p2c_l != 0:
-            cos_gamma = (i2c[0]*p2c[0] + i2c[1]*p2c[1] + i2c[2]*p2c[2]) / (p2c_l * i2c_l)
+            cos_gamma = (i2c[0]*p2c[0] + i2c[0]*p2c[1] + i2c[0]*p2c[2]) / (p2c_l * i2c_l)
             rr = p2c_l / i2c_l
             start_id = 0
             for l in range(1, l_limit):
@@ -351,9 +352,9 @@ def transfer_local(
     innerp_value, innerp_x, innerp_y, innerp_z, level, length, 
     number_makino, l_list, l_limit
 ):
-    pid, cid = declare("int", 2)
-    cid = cast(floor(i / number_makino), "int")
-    pid = cid >> 3
+    pid = declare("int")
+    pid = cast(floor(i / number_makino), "int")
+    pid = pid >> 3
     innerc_value[i] += local_expansion(innerp_value, innerp_x, innerp_y, innerp_z, px[pid], py[pid], pz[pid], innerc_x[i], innerc_y[i], innerc_z[i], number_makino, level, length, pid*number_makino, l_list, l_limit)
 
 
@@ -398,35 +399,30 @@ def direct_solve(i, value, x, y, z, result, n):
 backend = 'cython'
 # get_config().use_openmp = True
 
-n = 100
-number_makino = 24
-np.random.seed(0)
-rnd = np.random.random((4, n))
-x = rnd[0]
-y = rnd[1]
-z = rnd[2]
-# prop = rnd[3]
-prop = np.ones(n)
+n = 2
+number_makino = 6
+# np.random.seed(0)
+# rnd = np.random.random((4, n))
+# x = rnd[0]
+# y = rnd[1]
+# z = rnd[2]
+# # prop = rnd[3]
+# prop = np.ones(n)
 
 # x = np.array([0.03125, 0.03, 0.09375])
 # y = np.array([0.03125, 0.03, 0.09375])
 # z = np.array([0.03125, 0.03, 0.09375])
 # prop = np.array([1, 1, 1], dtype=np.float64)
 
-# x = np.array([0.03125, 0.09375, 0.96875, 0.90625])
-# y = np.array([0.03125, 0.03125, 0.96875, 0.96875])
-# z = np.array([0.03125, 0.03125, 0.96875, 0.96875])
-# prop = np.array([1, 1, 1, 1], dtype=np.float64)
-
-# x = np.array([0.03125, 0.03])
-# y = np.array([0.03125, 0.03])
-# z = np.array([0.03125, 0.03])
+x = np.array([0.03125, 0.03])
+y = np.array([0.03125, 0.03])
+z = np.array([0.03125, 0.03])
 # x = np.array([0.125, 0.875])
 # y = np.array([0.125, 0.875])
 # z = np.array([0.125, 0.875])
-# prop = np.array([1, 1], dtype=np.float64)
+prop = np.array([1, 1], dtype=np.float64)
 
-level = 3
+level = 2
 length = 1
 x_min = 0
 y_min = 0
@@ -463,11 +459,11 @@ associate_ids = np.zeros((total_blocks+8)*26, dtype=np.int32)
 sph_points, order = spherical_points(number_makino)
 sph_points = sph_points.astype(np.float64)
 l_limit = int(order/2)+1
-size_l_list = int(order*(order+1)/2) - 1
+size_l_list = int(l_limit*(l_limit+1)/2) - 1
 l_list = np.zeros(size_l_list)
 
 count = 0
-for i in range(1, order):
+for i in range(1, l_limit):
     temp_list = np.array(legendre(i))
     l_list[count:count+i+1] = temp_list[::-1]
 
@@ -539,13 +535,13 @@ ecalc_pseudoparticles_fine(
     bin_count, number_makino, length, level, l_limit, l_list
 )
 
-for l in range(level-1, 1, -1):
-    s0 = sb[level-l-1]
-    s1 = sb[level-l]
-    s2 = sb[level-l+1]
-    t0 = s0*number_makino
-    t1 = s1*number_makino
-    t2 = s2*number_makino
+# for l in range(level-1, 1, -1):
+#     s0 = sb[level-l-1]
+#     s1 = sb[level-l]
+#     s2 = sb[level-l+1]
+#     t0 = s0*number_makino
+#     t1 = s1*number_makino
+#     t2 = s2*number_makino
     
 #     for i in range(t2-t1):
 #         calc_pseudoparticles(
@@ -554,70 +550,63 @@ for l in range(level-1, 1, -1):
 #             cx[s1:s2], cy[s1:s2], cz[s1:s2], number_makino, length, l, 
 #             l_limit, l_list
 #         )
-    ecalc_pseudoparticles(
-        outer_value[t1:t2], outer_x[t1:t2], outer_y[t1:t2], outer_z[t1:t2], 
-        outer_value[t0:t1], outer_x[t0:t1], outer_y[t0:t1], outer_z[t0:t1], 
-        cx[s1:s2], cy[s1:s2], cz[s1:s2], number_makino, length, l, 
-        l_limit, l_list
-    )
+#     # ecalc_pseudoparticles(
+#     #     outer_value[t1:t2], outer_x[t1:t2], outer_y[t1:t2], outer_z[t1:t2], 
+#     #     outer_value[t0:t1], outer_x[t0:t1], outer_y[t0:t1], outer_z[t0:t1], 
+#     #     cx[s1:s2], cy[s1:s2], cz[s1:s2], number_makino, length, l, 
+#     #     l_limit, l_list
+#     # )
 
 
-# s0-s1 real level, s1-s2 parent level
-for l in range(2, level+1):
-    s0 = sb[level-l]
-    s1 = sb[level-l+1]
-    s2 = sb[level-l+2]
-    m0 = s0*number_makino
-    m1 = s1*number_makino
-    a1 = s1*26
-    a2 = s2*26
+# # s0-s1 real level, s1-s2 parent level
+# for l in range(2, level+1):
+#     s0 = sb[level-l]
+#     s1 = sb[level-l+1]
+#     s2 = sb[level-l+2]
+#     m0 = s0*number_makino
+#     m1 = s1*number_makino
+#     a1 = s1*26
+#     a2 = s2*26
     
-    # for i in range(m1-m0):
-    #     local_coeff(
-    #         i, inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
-    #         outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
-    #         cx[s0:s1], cy[s0:s1], cz[s0:s1], associate_ids[a1:a2], number_makino, 
-    #         l, length
-    #     )
-    elocal_coeff(
-        inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
-        outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
-        cx[s0:s1], cy[s0:s1], cz[s0:s1], associate_ids[a1:a2], number_makino, 
-        l, length
-    )
+#     for i in range(m1-m0):
+#         local_coeff(
+#             i, inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
+#             outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
+#             cx[s0:s1], cy[s0:s1], cz[s0:s1], associate_ids[a1:a2], number_makino, 
+#             l, length
+#         )
+#     # elocal_coeff(
+#     #     inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
+#     #     outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
+#     #     cx[s0:s1], cy[s0:s1], cz[s0:s1], associate_ids[a1:a2], number_makino, 
+#     #     l, length
+#     # )
 
 
-# # s0-s1 child level s1-s2 real level
-for l in range(2, level):
-    s0 = sb[level-l-1]
-    s1 = sb[level-l]
-    s2 = sb[level-l+1]
-    m0 = s0*number_makino
-    m1 = s1*number_makino
-    m2 = s2*number_makino
-    # for i in range(number_makino):
-    #     transfer_local(
-    #         i, inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
-    #         cx[s1:s2], cy[s1:s2], cz[s1:s2], inner_value[m1:m2], inner_x[m1:m2], 
-    #         inner_y[m1:m2], inner_z[m1:m2], l, length, 
-    #         number_makino, l_list, l_limit
-    #     )
-    etransfer_local(
-        inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
-        cx[s1:s2], cy[s1:s2], cz[s1:s2], inner_value[m1:m2], inner_x[m1:m2], 
-        inner_y[m1:m2], inner_z[m1:m2], l, length, 
-        number_makino, l_list, l_limit
-    )
+# # # s0-s1 child level s1-s2 real level
+# # for l in range(2, level):
+# #     s0 = sb[level-l-1]
+# #     s1 = sb[level-l]
+# #     s2 = sb[level-l+1]
+# #     m0 = s0*number_makino
+# #     m1 = s1*number_makino
+# #     m2 = s2*number_makino
+# #     etransfer_local(
+# #         inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
+# #         cx[s1:s2], cy[s1:s2], cz[s1:s2], inner_value[m1:m2], inner_x[m1:m2], 
+# #         inner_y[m1:m2], inner_z[m1:m2], l, length, 
+# #         number_makino, l_list, l_limit
+# #     )
 
 
-s0 = sb[0]
-s1 = sb[1]
-m0 = s0*number_makino
-m1 = s1*number_makino
-a0 = s0*26
-a1 = s1*26
+# s0 = sb[0]
+# s1 = sb[1]
+# m0 = s0*number_makino
+# m1 = s1*number_makino
+# a0 = s0*26
+# a1 = s1*26
 
-# # print(inner_value[np.nonzero(inner_value)])
+# # # print(inner_value[np.nonzero(inner_value)])
 
 
 # for i in range(s1-s0):
@@ -627,36 +616,31 @@ a1 = s1*26
 #         level, length, l_list, l_limit, x, y, z, prop, 
 #         bin_count, start, indices, result
 #     )
-ecompute_value(
-    cx[s0:s1], cy[s0:s1], cz[s0:s1], inner_value[m0:m1], inner_x[m0:m1], 
-    inner_y[m0:m1], inner_z[m0:m1], associate_ids[a0:a1], number_makino, 
-    level, length, l_list, l_limit, x, y, z, prop, 
-    bin_count, start, indices, result
-)
+# # ecompute_value(
+# #     cx[s0:s1], cy[s0:s1], cz[s0:s1], inner_value[m0:m1], inner_x[m0:m1], 
+# #     inner_y[m0:m1], inner_z[m0:m1], associate_ids[a0:a1], number_makino, 
+# #     level, length, l_list, l_limit, x, y, z, prop, 
+# #     bin_count, start, indices, result
+# # )
 
-edirect_solve(prop, x, y, z, direct_result, n)
+# edirect_solve(prop, x, y, z, direct_result, n)
 
-# print(cx[0], cy[0], cz[0])
-# print(outer_value[(0)*number_makino:(1)*number_makino])
-# print(cx[0], cy[0], cz[0])
-# print(inner_value[(0)*number_makino:(1)*number_makino])
+# # print(cx[37], cy[37], cz[37])
+# # print(outer_value[(37)*number_makino:(38)*number_makino])
+# # print(cx[0], cy[0], cz[0])
+# # print(inner_value[(0)*number_makino:(1)*number_makino])
 
-# print(cx[4096], cy[4096], cz[4096])
-# print(outer_value[(0+4096)*number_makino:(1+4096)*number_makino])
-# print(cx[4096], cy[4096], cz[4096])
-# print(inner_value[(0+4096)*number_makino:(1+4096)*number_makino])
+# # print(cx[4096], cy[4096], cz[4096])
+# # print(outer_value[(0+4096)*number_makino:(1+4096)*number_makino])
+# # print(cx[4096], cy[4096], cz[4096])
+# # print(inner_value[(0+4096)*number_makino:(1+4096)*number_makino])
 
-# print(cx[4608], cy[4608], cz[4608])
-# print(outer_value[(4608)*number_makino:(4609)*number_makino])
-# print(cx[4608], cy[4608], cz[4608])
-# print(inner_value[(4608)*number_makino:(4609)*number_makino])
+# # print(cx[4608], cy[4608], cz[4608])
+# # print(outer_value[(4608)*number_makino:(4609)*number_makino])
+# # print(cx[4608], cy[4608], cz[4608])
+# # print(inner_value[(4608)*number_makino:(4609)*number_makino])
 
 # # print(np.nonzero(bin_count))
 
-# print(direct_result)
-# print(result)
-
-print(np.mean(np.abs(direct_result - result)))
-
-# for i in result:
-#     print(i)
+# # print(direct_result)
+# # print(result)
