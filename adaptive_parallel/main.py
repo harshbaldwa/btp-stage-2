@@ -4,7 +4,6 @@ from compyle.low_level import cast, atomic_inc
 from compyle.parallel import serial
 from math import sqrt, floor
 
-from numpy.core.numeric import outer
 from spherical_points import spherical_points
 from scipy.special import legendre
 import numpy as np
@@ -158,8 +157,8 @@ def calc_pseudoparticles_fine(
     m2c_l, p2c_l, cos_gamma, rr, l_result, pseudo_result = declare("double", 6)
     cid = cast(floor(i / number_makino), "int")
     m2c[0] = pseudo_x[i] - cx[cid]
-    m2c[1] = pseudo_y[i] - cx[cid]
-    m2c[2] = pseudo_z[i] - cx[cid]
+    m2c[1] = pseudo_y[i] - cy[cid]
+    m2c[2] = pseudo_z[i] - cz[cid]
     m2c_l = length/(2**(level+1))*3
     pseudo_result = 0
     for j in range(bin_count[cid]):
@@ -177,7 +176,7 @@ def calc_pseudoparticles_fine(
                 l_result = calc_legendre(l_list, cos_gamma, l+1, start_id)
                 pseudo_result += l_result*(2*l+1)*(rr**l)*part_value[pid]
                 start_id += l+1
-        
+
     pseudo_value[i] = pseudo_result/number_makino
     
 
@@ -398,8 +397,8 @@ def direct_solve(i, value, x, y, z, result, n):
 backend = 'cython'
 # get_config().use_openmp = True
 
-n = 100
-number_makino = 24
+n = 2
+number_makino = 4
 np.random.seed(0)
 rnd = np.random.random((4, n))
 x = rnd[0]
@@ -413,10 +412,10 @@ prop = np.ones(n)
 # z = np.array([0.03125, 0.03, 0.09375])
 # prop = np.array([1, 1, 1], dtype=np.float64)
 
-# x = np.array([0.03125, 0.09375, 0.96875, 0.90625])
-# y = np.array([0.03125, 0.03125, 0.96875, 0.96875])
-# z = np.array([0.03125, 0.03125, 0.96875, 0.96875])
-# prop = np.array([1, 1, 1, 1], dtype=np.float64)
+# x = np.array([0.0312, 0.0937, 0.9687, 0.9062])
+# y = np.array([0.0312, 0.0312, 0.9687, 0.9687])
+# z = np.array([0.0312, 0.0312, 0.9687, 0.9687])
+# prop = np.ones(n)
 
 # x = np.array([0.03125, 0.03])
 # y = np.array([0.03125, 0.03])
@@ -426,7 +425,7 @@ prop = np.ones(n)
 # z = np.array([0.125, 0.875])
 # prop = np.array([1, 1], dtype=np.float64)
 
-level = 3
+level = 4
 length = 1
 x_min = 0
 y_min = 0
@@ -526,13 +525,6 @@ m0 = s0*number_makino
 m1 = s1*number_makino
 
 
-# for i in range(m1-m0):
-#     calc_pseudoparticles_fine(
-#         i, outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
-#         prop, x, y, z, cx[s0:s1], cy[s0:s1], cz[s0:s1], indices, start, 
-#         bin_count, number_makino, length, level, l_limit, l_list
-#     )
-
 ecalc_pseudoparticles_fine(
     outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
     prop, x, y, z, cx[s0:s1], cy[s0:s1], cz[s0:s1], indices, start, 
@@ -547,13 +539,7 @@ for l in range(level-1, 1, -1):
     t1 = s1*number_makino
     t2 = s2*number_makino
     
-#     for i in range(t2-t1):
-#         calc_pseudoparticles(
-#             i, outer_value[t1:t2], outer_x[t1:t2], outer_y[t1:t2], outer_z[t1:t2], 
-#             outer_value[t0:t1], outer_x[t0:t1], outer_y[t0:t1], outer_z[t0:t1], 
-#             cx[s1:s2], cy[s1:s2], cz[s1:s2], number_makino, length, l, 
-#             l_limit, l_list
-#         )
+
     ecalc_pseudoparticles(
         outer_value[t1:t2], outer_x[t1:t2], outer_y[t1:t2], outer_z[t1:t2], 
         outer_value[t0:t1], outer_x[t0:t1], outer_y[t0:t1], outer_z[t0:t1], 
@@ -571,14 +557,7 @@ for l in range(2, level+1):
     m1 = s1*number_makino
     a1 = s1*26
     a2 = s2*26
-    
-    # for i in range(m1-m0):
-    #     local_coeff(
-    #         i, inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
-    #         outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
-    #         cx[s0:s1], cy[s0:s1], cz[s0:s1], associate_ids[a1:a2], number_makino, 
-    #         l, length
-    #     )
+
     elocal_coeff(
         inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
         outer_value[m0:m1], outer_x[m0:m1], outer_y[m0:m1], outer_z[m0:m1], 
@@ -595,13 +574,7 @@ for l in range(2, level):
     m0 = s0*number_makino
     m1 = s1*number_makino
     m2 = s2*number_makino
-    # for i in range(number_makino):
-    #     transfer_local(
-    #         i, inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
-    #         cx[s1:s2], cy[s1:s2], cz[s1:s2], inner_value[m1:m2], inner_x[m1:m2], 
-    #         inner_y[m1:m2], inner_z[m1:m2], l, length, 
-    #         number_makino, l_list, l_limit
-    #     )
+
     etransfer_local(
         inner_value[m0:m1], inner_x[m0:m1], inner_y[m0:m1], inner_z[m0:m1], 
         cx[s1:s2], cy[s1:s2], cz[s1:s2], inner_value[m1:m2], inner_x[m1:m2], 
@@ -617,16 +590,6 @@ m1 = s1*number_makino
 a0 = s0*26
 a1 = s1*26
 
-# # print(inner_value[np.nonzero(inner_value)])
-
-
-# for i in range(s1-s0):
-#     compute_value(
-#         i, cx[s0:s1], cy[s0:s1], cz[s0:s1], inner_value[m0:m1], inner_x[m0:m1], 
-#         inner_y[m0:m1], inner_z[m0:m1], associate_ids[a0:a1], number_makino, 
-#         level, length, l_list, l_limit, x, y, z, prop, 
-#         bin_count, start, indices, result
-#     )
 ecompute_value(
     cx[s0:s1], cy[s0:s1], cz[s0:s1], inner_value[m0:m1], inner_x[m0:m1], 
     inner_y[m0:m1], inner_z[m0:m1], associate_ids[a0:a1], number_makino, 
@@ -636,27 +599,24 @@ ecompute_value(
 
 edirect_solve(prop, x, y, z, direct_result, n)
 
-# print(cx[0], cy[0], cz[0])
-# print(outer_value[(0)*number_makino:(1)*number_makino])
-# print(cx[0], cy[0], cz[0])
-# print(inner_value[(0)*number_makino:(1)*number_makino])
 
-# print(cx[4096], cy[4096], cz[4096])
-# print(outer_value[(0+4096)*number_makino:(1+4096)*number_makino])
-# print(cx[4096], cy[4096], cz[4096])
-# print(inner_value[(0+4096)*number_makino:(1+4096)*number_makino])
+# print(np.nonzero(bin_count))
 
-# print(cx[4608], cy[4608], cz[4608])
-# print(outer_value[(4608)*number_makino:(4609)*number_makino])
-# print(cx[4608], cy[4608], cz[4608])
-# print(inner_value[(4608)*number_makino:(4609)*number_makino])
+print(direct_result)
+print(result)
 
-# # print(np.nonzero(bin_count))
+# print(np.mean(np.abs(result-direct_result)))
 
-# print(direct_result)
-# print(result)
+# print(is_well_separated(cx[228+4096], cy[228+4096], cz[228+4096], cx[453+4096], cy[453+4096], cz[453+4096], 0.5*sqrt(3)*(1/2**3)))
 
-print(np.mean(np.abs(direct_result - result)))
+# print(x)
+# print(y)
+# print(z)
 
-# for i in result:
+# magic_number = 1826
+# magic_number = 3625
+# magic_number = 228 + 4096
+# magic_number = 453 + 4096
+# print(cx[magic_number], cy[magic_number], cz[magic_number])
+# for i in inner_value[magic_number*number_makino:(magic_number+1)*number_makino]:
 #     print(i)
