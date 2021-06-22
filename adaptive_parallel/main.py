@@ -174,8 +174,6 @@ def calc_pseudoparticles_fine(
             start_id = 0
             for l in range(1, l_limit):
                 l_result = calc_legendre(l_list, cos_gamma, l+1, start_id)
-                # if ((cx[cid] == 0.03125) and (cy[cid] == 0.03125) and (cz[cid] == 0.03125)):
-                #     printf("%.16f\n", l_result)
                 pseudo_result += l_result*(2*l+1)*(rr**l)*part_value[pid]
                 start_id += l+1
 
@@ -245,8 +243,6 @@ def find_associates(
                     az = cz[i] + l*dist_offset
                     if ((ax < length) and (ay < length) and (az < length) and (ax > 0) and (ay > 0) and (az > 0)):
                         associate_ids[26*i + count] = get_cell_id(ax, ay, az, b_len, x_min, y_min, z_min, length)
-                    else:
-                        associate_ids[26*i + count] = -1
                     count += 1
                 else:
                     count_reg = 1
@@ -334,8 +330,6 @@ def local_expansion(
         if p2c_l != 0:
             cos_gamma = (i2c[0]*p2c[0] + i2c[1]*p2c[1] + i2c[2]*p2c[2]) / (p2c_l * i2c_l)
             rr = p2c_l / i2c_l
-            # if ((cx == 0.125) and (cy == 0.125) and (cz == 0.125)):
-            #     printf("%f, %f, %f\n%f, %f, %f\n\n", p2c[0]+cx, p2c[1]+cy, p2c[2]+cz, i2c[0]+cx, i2c[1]+cy, i2c[2]+cz)
             start_id = 0
             for l in range(1, l_limit):
                 l_result = calc_legendre(l_list, cos_gamma, l+1, start_id)
@@ -446,7 +440,7 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
     inner_y = np.zeros(total_blocks*number_makino)
     inner_z = np.zeros(total_blocks*number_makino)
 
-    associate_ids = np.zeros((total_blocks+8)*26, dtype=np.int32)
+    associate_ids = np.ones((total_blocks+8)*26, dtype=np.int32)*-1
 
     sph_points, order = spherical_points(number_makino)
     sph_points = sph_points.astype(np.float64)
