@@ -299,6 +299,8 @@ def local_coeff(
                 if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], cell_radius) == 1):
                     for n in range(number_makino):
                         inner_value[i] += direct_computation(outer_value[child_id*number_makino+n], outer_x[child_id*number_makino+n], outer_y[child_id*number_makino+n], outer_z[child_id*number_makino+n], inner_x[i], inner_y[i], inner_z[i])
+                # else:
+
                 child_id += 1
 
 @annotate(
@@ -489,6 +491,8 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
     edirect_solve = Elementwise(direct_solve, backend=backend)
 
 
+    start_tree = time.time()
+
     einitial_bin_count(bin_count)
     eget_bin_count(x, y, z, b_len, bin_count, bin_offset)
     cum_bin_count(bin_count=bin_count, start_index=start)
@@ -580,23 +584,22 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
         bin_count, start, indices, result
     )
 
+    end_tree = time.time()
+
     edirect_solve(prop, x, y, z, direct_result, n)
 
-    return direct_result, result
+    end_direct = time.time()
+
+    return direct_result, result, end_direct-end_tree, end_tree-start_tree
 
 
 
-n = 1000
-number_makino = 4
-level = 6
+n = 100
+number_makino = 24
+level = 4
 
-a=time.time()
-direct_result, result = solver(n, number_makino, level, True)
-b=time.time()
-direct_result, result = solver(n, number_makino, level, False)
-c=time.time()
+direct_result, result, time_direct, time_tree = solver(n, number_makino, level, True)
 
-print(b-a, c-b)
+# print(time_direct/time_tree, time_tree)
 
-# print(np.max(np.abs(direct_result-result)/result)*100)
-# print(np.mean(np.abs(result-direct_result)))
+print(np.mean(np.abs(result-direct_result)*100/direct_result))
