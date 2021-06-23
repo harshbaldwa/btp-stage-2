@@ -11,7 +11,7 @@ import time
 import argparse
 
 
-@annotate(double="x, y, z, x_min, y_min, z_min, length", b_len="int", return_="int")
+@annotate(double="x, y, z, x_min, y_min, z_min, length, b_len", return_="int")
 def get_cell_id(x, y, z, b_len, x_min=0.0, y_min=0.0, z_min=0.0, length=1):
     nx, ny, nz, id = declare("int", 4)
     nx = cast(floor((b_len * (x - x_min)) / length), "int")
@@ -37,13 +37,13 @@ def get_cell_id(x, y, z, b_len, x_min=0.0, y_min=0.0, z_min=0.0, length=1):
     return id
 
 
-@annotate(i='int', bin_count='intp')
+@annotate(i='int', bin_count='gintp')
 def initial_bin_count(i, bin_count):
     bin_count[i] = 0
 
 
 @serial
-@annotate(int="i, b_len", intp="bin_count, bin_offset", doublep="x, y, z")
+@annotate(i="int", gintp="bin_count, bin_offset", gdoublep="x, y, z", b_len="double")
 def get_bin_count(i, x, y, z, b_len, bin_count, bin_offset):
     id = declare("int")
     idx = declare("int")
@@ -52,14 +52,14 @@ def get_bin_count(i, x, y, z, b_len, bin_count, bin_offset):
     bin_offset[i] = idx
 
 
-@annotate(i="int", intp="bin_p, bin_c")
+@annotate(i="int", gintp="bin_p, bin_c")
 def transfer_bin_count(i, bin_p, bin_c):
     j = declare("int")
     for j in range(8):
         bin_p[i] += bin_c[8*i+j]
 
 
-@annotate(i="int", bin_count="intp", return_="int")
+@annotate(i="int", bin_count="gintp", return_="int")
 def input_bin_count(i, bin_count):
     if i == 0:
         return 0
@@ -67,15 +67,16 @@ def input_bin_count(i, bin_count):
         return bin_count[i - 1]
 
 
-@annotate(int="i, item", start_index="intp")
+@annotate(int="i, item", start_index="gintp")
 def output_bin_count(i, item, start_index):
     start_index[i] = item
 
 
 @annotate(
-    int="i, b_len",
+    i="int",
+    b_len="double",
     intp="bin_offset, indices, start_index",
-    doublep="x, y, z"
+    gdoublep="x, y, z"
 )
 def start_indices(i, x, y, z, b_len, bin_offset, start_index, indices):
     id = declare("int")
@@ -85,8 +86,8 @@ def start_indices(i, x, y, z, b_len, bin_offset, start_index, indices):
 
 @annotate(
     int="i, number_makino",
-    doublep="cx, cy, cz, outer_x, outer_y, outer_z, inner_x, inner_y, inner_z, sph_points",
-    level="intp",
+    gdoublep="cx, cy, cz, outer_x, outer_y, outer_z, inner_x, inner_y, inner_z, sph_points",
+    level="gintp",
     length="double"
 )
 def setting_pseudoparticles(
@@ -105,23 +106,21 @@ def setting_pseudoparticles(
         inner_z[i*number_makino + j] = cz[i] + sph_points[3*j+2]*0.5*size_cell
 
 
-@annotate(int="l_len, start_id", x="double", l_list="doublep", return_="double")
-def calc_legendre(l_list, x, l_len, start_id):
+@annotate(int="l_len, start_id", cos_gamma="double", l_list="gdoublep", return_="double")
+def calc_legendre(l_list, cos_gamma, l_len, start_id):
     i = declare("int")
     result = declare("double")
     result = 0
     for i in range(l_len):
-        result += l_list[start_id+i]*(x**i)
+        result += l_list[start_id+i]*(cos_gamma**i)
 
     return result
 
 
-# remove unnecessary calculations, position of makino pseudoparticles!!
-# done
 @annotate(
     int="i, level, l_limit, number_makino",
-    intp="bin_count, indices, start",
-    doublep="pseudo_value, pseudo_x, pseudo_y, pseudo_z, part_value, part_x, part_y, part_z, cx, cy, cz, l_list",
+    gintp="bin_count, indices, start",
+    gdoublep="pseudo_value, pseudo_x, pseudo_y, pseudo_z, part_value, part_x, part_y, part_z, cx, cy, cz, l_list",
     length="double"
 )
 def calc_pseudoparticles_fine(
@@ -132,7 +131,7 @@ def calc_pseudoparticles_fine(
     j, l, cid, pid, start_id = declare("int", 5)
     p2c, m2c = declare("matrix(3)", 2)
     m2c_l, p2c_l, cos_gamma, rr, l_result, pseudo_result = declare("double", 6)
-    cid = cast(floor(i / number_makino), "int")
+    cid = cast(floor(i*1.0 / number_makino), "int")
     m2c[0] = pseudo_x[i] - cx[cid]
     m2c[1] = pseudo_y[i] - cy[cid]
     m2c[2] = pseudo_z[i] - cz[cid]
@@ -160,7 +159,7 @@ def calc_pseudoparticles_fine(
 
 @annotate(
     int="i, level, l_limit, number_makino",
-    doublep="pseudo_value, pseudo_x, pseudo_y, pseudo_z, part_value, part_x, part_y, part_z, cx, cy, cz, l_list",
+    gdoublep="pseudo_value, pseudo_x, pseudo_y, pseudo_z, part_value, part_x, part_y, part_z, cx, cy, cz, l_list",
     length="double"
 )
 def calc_pseudoparticles(
@@ -171,7 +170,7 @@ def calc_pseudoparticles(
     j, l, cid, pid, start_id = declare("int", 5)
     p2c, m2c = declare("matrix(3)", 2)
     m2c_l, p2c_l, cos_gamma, rr, l_result, pseudo_result = declare("double", 6)
-    cid = cast(floor(i / number_makino), "int")
+    cid = cast(floor(i*1.0 / number_makino), "int")
     m2c[0] = pseudo_x[i] - cx[cid]
     m2c[1] = pseudo_y[i] - cy[cid]
     m2c[2] = pseudo_z[i] - cz[cid]
@@ -198,15 +197,15 @@ def calc_pseudoparticles(
 
 # need to do this for all levels 1-finest (both included) (need Vb for level 2 as well)
 @annotate(
-    i="int", associate_ids="intp", level="intp",
-    doublep="cx, cy, cz", double="length, x_min, y_min, z_min"
+    i="int", gintp="associate_ids, level",
+    gdoublep="cx, cy, cz", double="length, x_min, y_min, z_min"
 )
 def find_associates(
     i, cx, cy, cz, associate_ids, level, 
     length, x_min=0, y_min=0, z_min=0
 ):
-    ax, ay, az, dist_offset = declare("double", 4)
-    b_len, j, k, l, count, count_reg = declare("int", 6)
+    ax, ay, az, dist_offset, b_len = declare("double", 5)
+    j, k, l, count, count_reg = declare("int", 5)
     b_len = 2.0**level[i]
     dist_offset = length/b_len
     count = 0
@@ -263,8 +262,8 @@ def is_adjacent(cx, cy, cz, ax, ay, az, cell_dist):
 
 # all arrays of level at which being calculated, associates id parent level
 @annotate(
-    doublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz, part_value, part_x, part_y, part_z",
-    int="i, level, number_makino", intp="associate_ids, bin_count, indices, start", length="double"
+    gdoublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz, part_value, part_x, part_y, part_z",
+    int="i, level, number_makino", gintp="associate_ids, bin_count, indices, start", length="double"
     # doublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz",
     # int="i, level, number_makino", associate_ids="intp", length="double"
 )
@@ -279,9 +278,9 @@ def local_coeff(
     cell_id, parent_id, a_id, child_id, pid = declare("int", 5)
     j, k, n = declare("int", 3)
     cell_radius = declare("double")
-    cell_radius = sqrt(3)*length/(2.0**(level+1))
+    cell_radius = sqrt(3.0)*length/(2.0**(level+1))
     # cell_radius = length/(2**(level+1))
-    cell_id = cast(floor(i / number_makino), "int")
+    cell_id = cast(floor(i*1.0 / number_makino), "int")
     parent_id = cell_id >> 3
     for j in range(26):
         a_id = associate_ids[parent_id*26+j]
@@ -294,15 +293,13 @@ def local_coeff(
                         inner_value[i] += direct_computation(outer_value[pid], outer_x[pid], outer_y[pid], outer_z[pid], inner_x[i], inner_y[i], inner_z[i])
                 else:
                     if (is_adjacent(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], 2*cell_radius) == 0):
-                        # if cell_id == 1:
-                        #     printf("%d, %d\n", cell_id, child_id)
                         for n in range(bin_count[child_id]):
                             pid = indices[start[child_id] + n]
                             inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
                 child_id += 1
 
 @annotate(
-    doublep="inner_value, inner_x, inner_y, inner_z, l_list",
+    gdoublep="inner_value, inner_x, inner_y, inner_z, l_list",
     double="cx, cy, cz, point_x, point_y, point_z, length",
     int="number_makino, level, inner_start_id, l_limit",
     return_="double"
@@ -341,7 +338,7 @@ def local_expansion(
 # give parent wala level
 @annotate(
     int="i, level, number_makino, l_limit",
-    doublep="innerc_value, innerc_x, innerc_y, innerc_z, px, py, pz, innerp_value, innerp_x, innerp_y, innerp_z, l_list",
+    gdoublep="innerc_value, innerc_x, innerc_y, innerc_z, px, py, pz, innerp_value, innerp_x, innerp_y, innerp_z, l_list",
     length="double"
 )
 def transfer_local(
@@ -350,7 +347,7 @@ def transfer_local(
     number_makino, l_list, l_limit
 ):
     pid, cid = declare("int", 2)
-    cid = cast(floor(i / number_makino), "int")
+    cid = cast(floor(i*1.0 / number_makino), "int")
     pid = cid >> 3
     innerc_value[i] += local_expansion(innerp_value, innerp_x, innerp_y, innerp_z, px[pid], py[pid], pz[pid], innerc_x[i], innerc_y[i], innerc_z[i], number_makino, level, length, pid*number_makino, l_list, l_limit)
 
@@ -358,9 +355,9 @@ def transfer_local(
 
 @annotate(
     int="i, level, number_makino, l_limit",
-    doublep="cx, cy, cz, inner_value, inner_x, inner_y, inner_z, l_list, part_x, part_y, part_z, part_value, part_result",
+    gdoublep="cx, cy, cz, inner_value, inner_x, inner_y, inner_z, l_list, part_x, part_y, part_z, part_value, part_result",
     length="double",
-    intp="bin_count, indices, start, associate_ids"
+    gintp="bin_count, indices, start, associate_ids"
 )
 def compute_value(
     i, cx, cy, cz, inner_value, inner_x, inner_y, inner_z, associate_ids, 
@@ -385,7 +382,7 @@ def compute_value(
         part_result[pid] += local_expansion(inner_value, inner_x, inner_y, inner_z, cx[i], cy[i], cz[i], part_x[pid], part_y[pid], part_z[pid], number_makino, level, length, i*number_makino, l_list, l_limit)
 
 
-@annotate(int="i, n", doublep="value, x, y, z, result")
+@annotate(int="i, n", gdoublep="value, x, y, z, result")
 def direct_solve(i, value, x, y, z, result, n):
     j = declare("int")
     for j in range(n):
@@ -408,9 +405,6 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
     y = rnd[1]
     z = rnd[2]
 
-    # x = np.array([0.0625, 0.3125])
-    # y = np.array([0.0625, 0.0625])
-    # z = np.array([0.0625, 0.0625])
     prop = np.ones(n)
 
     length = 1
@@ -495,6 +489,8 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
 
 
     start_tree = time.time()
+
+    x, y, z, prop, cx, cy, cz, level_list, outer_value, outer_x, outer_y, outer_z, inner_value, inner_x, inner_y, inner_z, associate_ids, sph_points, l_list, bin_count, start, bin_offset, indices, result, direct_result = wrap(x, y, z, prop, cx, cy, cz, level_list, outer_value, outer_x, outer_y, outer_z, inner_value, inner_x, inner_y, inner_z, associate_ids, sph_points, l_list, bin_count, start, bin_offset, indices, result, direct_result, backend=backend)
 
     einitial_bin_count(bin_count)
     eget_bin_count(x, y, z, b_len, bin_count[sb[0]:sb[1]], bin_offset)
@@ -607,9 +603,9 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
 
 
 n = 2000
-number_makino = 6
+number_makino = 4
 level = 4
-openmp = True
+openmp = False
 backend = 'opencl'
 direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp, backend)
 
