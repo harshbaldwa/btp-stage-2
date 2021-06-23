@@ -407,7 +407,8 @@ def compute_value(
         part_result[pid] += local_expansion(inner_value, inner_x, inner_y, inner_z, cx[i], cy[i], cz[i], part_x[pid], part_y[pid], part_z[pid], number_makino, level, length, i*number_makino, l_list, l_limit)
 
 
-@annotate(int="i, n", gdoublep="value, x, y, z, result")
+# @annotate(int="i, n", gdoublep="value, x, y, z, result")
+@annotate(i="int", gint="n", gdoublep="value, x, y, z, result")
 def direct_solve(i, value, x, y, z, result, n):
     j = declare("int")
     for j in range(n):
