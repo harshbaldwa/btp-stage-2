@@ -136,7 +136,7 @@ def calc_pseudoparticles_fine(
     m2c[0] = pseudo_x[i] - cx[cid]
     m2c[1] = pseudo_y[i] - cy[cid]
     m2c[2] = pseudo_z[i] - cz[cid]
-    m2c_l = length/(2**(level+1))*3
+    m2c_l = length/(2.0**(level+1))*3
     pseudo_result = 0
     for j in range(bin_count[cid]):
         pid = indices[start[cid] + j]
@@ -175,7 +175,7 @@ def calc_pseudoparticles(
     m2c[0] = pseudo_x[i] - cx[cid]
     m2c[1] = pseudo_y[i] - cy[cid]
     m2c[2] = pseudo_z[i] - cz[cid]
-    m2c_l = length/(2**(level+1))*3
+    m2c_l = length/(2.0**(level+1))*3
     pseudo_result = 0
     pid = (cid << 3)*number_makino
     for j in range(8*number_makino):
@@ -207,7 +207,7 @@ def find_associates(
 ):
     ax, ay, az, dist_offset = declare("double", 4)
     b_len, j, k, l, count, count_reg = declare("int", 6)
-    b_len = 2**level[i]
+    b_len = 2.0**level[i]
     dist_offset = length/b_len
     count = 0
     count_reg = 0
@@ -279,7 +279,7 @@ def local_coeff(
     cell_id, parent_id, a_id, child_id, pid = declare("int", 5)
     j, k, n = declare("int", 3)
     cell_radius = declare("double")
-    cell_radius = sqrt(3)*length/(2**(level+1))
+    cell_radius = sqrt(3)*length/(2.0**(level+1))
     # cell_radius = length/(2**(level+1))
     cell_id = cast(floor(i / number_makino), "int")
     parent_id = cell_id >> 3
@@ -320,7 +320,7 @@ def local_expansion(
     p2c[2] = point_z - cz
     p2c_l = sqrt(p2c[0]**2 + p2c[1]**2 + p2c[2]**2)
     result = 0
-    i2c_l = 0.5*length/(2**(level+1))
+    i2c_l = 0.5*length/(2.0**(level+1))
     for j in range(number_makino):
         start_inner = inner_start_id + j
         i2c[0] = inner_x[start_inner] - cx
