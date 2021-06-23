@@ -610,8 +610,8 @@ n = 2000
 number_makino = 6
 level = 4
 openmp = True
-
-direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp)
+backend = 'opencl'
+direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp, backend)
 
 print(time_direct/time_tree, time_tree)
 print(np.mean(np.abs(result-direct_result)/direct_result))
