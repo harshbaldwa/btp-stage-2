@@ -259,6 +259,27 @@ def is_adjacent(cx, cy, cz, ax, ay, az, cell_dist):
         return 0
 
 
+@annotate(
+    int="i, number_makino, pid_start",
+    gdoublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z"
+)
+def calc_v_list(i, number_makino, pid_start, inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z):
+    n, pid = declare("int", 2)
+    for n in range(number_makino):
+        pid = pid_start + n
+        inner_value[i] += direct_computation(outer_value[pid], outer_x[pid], outer_y[pid], outer_z[pid], inner_x[i], inner_y[i], inner_z[i])
+
+
+@annotate(
+    int="i, num_loop, pid_start",
+    gdoublep="inner_value, inner_x, inner_y, inner_z, part_value, part_x, part_y, part_z",
+    indices="gintp"
+)
+def calc_z_list(i, num_loop, pid_start, inner_value, inner_x, inner_y, inner_z, part_value, part_x, part_y, part_z, indices):
+    n, pid = declare("int", 2)
+    for n in range(num_loop):
+        pid = indices[pid_start + n]
+        inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
 
 # all arrays of level at which being calculated, associates id parent level
 @annotate(
@@ -288,15 +309,18 @@ def local_coeff(
             child_id = a_id << 3
             for k in range(8):
                 if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], cell_radius) == 1):
-                    for n in range(number_makino):
-                        pid = child_id*number_makino+n
-                        inner_value[i] += direct_computation(outer_value[pid], outer_x[pid], outer_y[pid], outer_z[pid], inner_x[i], inner_y[i], inner_z[i])
+                    calc_v_list(i, number_makino, child_id*number_makino, inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z)
+                    # for n in range(number_makino):
+                    #     pid = child_id*number_makino+n
+                    #     inner_value[i] += direct_computation(outer_value[pid], outer_x[pid], outer_y[pid], outer_z[pid], inner_x[i], inner_y[i], inner_z[i])
                 else:
                     if (is_adjacent(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], 2*cell_radius) == 0):
-                        for n in range(bin_count[child_id]):
-                            pid = indices[start[child_id] + n]
-                            inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
+                        calc_z_list(i, bin_count[child_id], start[child_id], inner_value, inner_x, inner_y, inner_z, part_value, part_x, part_y, part_z, indices)
+                        # for n in range(bin_count[child_id]):
+                        #     pid = indices[start[child_id] + n]
+                        #     inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
                 child_id += 1
+
 
 @annotate(
     gdoublep="inner_value, inner_x, inner_y, inner_z, l_list",
@@ -606,7 +630,7 @@ n = 2000
 number_makino = 4
 level = 4
 openmp = False
-backend = 'opencl'
+backend = 'cython'
 direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp, backend)
 
 print(time_direct/time_tree, time_tree)
