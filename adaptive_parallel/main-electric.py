@@ -408,10 +408,10 @@ def compute_value(
 
 
 # @annotate(int="i, n", gdoublep="value, x, y, z, result")
-@annotate(int="i, n", gdoublep="value, x, y, z, result")
-def direct_solve(i, value, x, y, z, result, n):
+@annotate(int="i, n_part", gdoublep="value, x, y, z, result")
+def direct_solve(i, value, x, y, z, result, n_part):
     j = declare("int")
-    for j in range(n):
+    for j in range(n_part):
         if i != j:
             result[i] += direct_computation(value[j], x[j], y[j], z[j], x[i], y[i], z[i])
 
