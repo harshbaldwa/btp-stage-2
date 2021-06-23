@@ -105,7 +105,7 @@ def setting_pseudoparticles(
         inner_z[i*number_makino + j] = cz[i] + sph_points[3*j+2]*0.5*size_cell
 
 
-@annotate(int="l_len, start_id", x="double", coeff_list="doublep", return_="double")
+@annotate(int="l_len, start_id", x="double", l_list="doublep", return_="double")
 def calc_legendre(l_list, x, l_len, start_id):
     i = declare("int")
     result = declare("double")
