@@ -10,36 +10,6 @@ import numpy as np
 import time
 import argparse
 
-# @annotate(double="x, y, z, x_min, y_min, z_min, length", b_len="int", return_="long")
-# def get_cell_id(x, y, z, b_len, x_min=0.0, y_min=0.0, z_min=0.0, length=1):
-#     nx, ny, nz, id = declare("int", 4)
-#     nx = cast(floor((b_len * (x - x_min)) / length), "int")
-#     ny = cast(floor((b_len * (y - y_min)) / length), "int")
-#     nz = cast(floor((b_len * (z - z_min)) / length), "int")
-
-#     nx = nx & 0xFFFFFFFFFFFFFFF
-#     nx = ((nx << 32) + nx) & 0xFFFF00000000FFFF
-#     nx = ((nx << 16) + nx) & 0x00FF0000FF0000FF
-#     nx = ((nx << 8) + nx) & 0xF00F00F00F00F00F
-#     nx = ((nx << 4) + nx) & 0x30C30C30C30C30C3
-#     nx = ((nx << 2) + nx) & 0x9249249249249249
-
-#     ny = ny & 0xFFFFFFFFFFFFFFF
-#     ny = ((ny << 32) + ny) & 0xFFFF00000000FFFF
-#     ny = ((ny << 16) + ny) & 0x00FF0000FF0000FF
-#     ny = ((ny << 8) + ny) & 0xF00F00F00F00F00F
-#     ny = ((ny << 4) + ny) & 0x30C30C30C30C30C3
-#     ny = ((ny << 2) + ny) & 0x9249249249249249
-
-#     nz = nz & 0xFFFFFFFFFFFFFFF
-#     nz = ((nz << 32) + nz) & 0xFFFF00000000FFFF
-#     nz = ((nz << 16) + nz) & 0x00FF0000FF0000FF
-#     nz = ((nz << 8) + nz) & 0xF00F00F00F00F00F
-#     nz = ((nz << 4) + nz) & 0x30C30C30C30C30C3
-#     nz = ((nz << 2) + nz) & 0x9249249249249249
-
-#     id = (nz << 2) | (ny << 1) | nx
-#     return id
 
 @annotate(double="x, y, z, x_min, y_min, z_min, length", b_len="int", return_="int")
 def get_cell_id(x, y, z, b_len, x_min=0.0, y_min=0.0, z_min=0.0, length=1):
@@ -125,7 +95,7 @@ def setting_pseudoparticles(
 ):
     j = declare("int")
     size_cell = declare("double")
-    size_cell = length/(2**(level[i]+1))
+    size_cell = length/(2.0**(level[i]+1))
     for j in range(number_makino):
         outer_x[i*number_makino + j] = cx[i] + sph_points[3*j]*3*size_cell
         outer_y[i*number_makino + j] = cy[i] + sph_points[3*j+1]*3*size_cell
