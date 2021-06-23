@@ -388,10 +388,11 @@ def compute_value(
     number_makino, level, length, l_list, l_limit, part_x, part_y, part_z, 
     part_value, bin_count, start, indices, part_result
 ):
-    j, k, l, m, aid, pid, p2id, p3id = declare("int", 8)
+    j, k, l, m, associate_num, aid, pid, p2id, p3id = declare("int", 9)
+    associate_num = 26
     for j in range(bin_count[i]):
         pid = indices[start[i] + j]
-        for k in range(26):
+        for k in range(associate_num):
             aid = associate_ids[i*26 + k]
             if aid != -1:
                 for l in range(bin_count[aid]):
