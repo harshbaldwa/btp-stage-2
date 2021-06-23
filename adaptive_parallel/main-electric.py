@@ -636,12 +636,12 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
 
 
 
-n = 100000
-number_makino = 24
+n = 2000
+number_makino = 6
 level = 4
+openmp = True
 
-direct_result, result, time_direct, time_tree = solver(n, number_makino, level, True)
+direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp)
 
 print(time_direct/time_tree, time_tree)
-
 print(np.mean(np.abs(result-direct_result)/direct_result))
