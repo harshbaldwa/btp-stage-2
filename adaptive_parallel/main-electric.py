@@ -408,7 +408,7 @@ def compute_value(
 
 
 # @annotate(int="i, n", gdoublep="value, x, y, z, result")
-@annotate(i="int", gint="n", gdoublep="value, x, y, z, result")
+@annotate(int="i, n", gdoublep="value, x, y, z, result")
 def direct_solve(i, value, x, y, z, result, n):
     j = declare("int")
     for j in range(n):
@@ -632,7 +632,7 @@ n = 2000
 number_makino = 4
 level = 4
 openmp = False
-backend = 'cython'
+backend = 'opencl'
 direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp, backend)
 
 print(time_direct/time_tree, time_tree)
