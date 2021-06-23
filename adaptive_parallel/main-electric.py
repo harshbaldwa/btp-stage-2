@@ -106,12 +106,12 @@ def setting_pseudoparticles(
 
 
 @annotate(int="l_len, start_id", x="double", coeff_list="doublep", return_="double")
-def calc_legendre(coeff_list, x, l_len, start_id):
+def calc_legendre(l_list, x, l_len, start_id):
     i = declare("int")
     result = declare("double")
     result = 0
     for i in range(l_len):
-        result += coeff_list[start_id+i]*(x**i)
+        result += l_list[start_id+i]*(x**i)
 
     return result
 
