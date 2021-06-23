@@ -419,11 +419,7 @@ def direct_solve(i, value, x, y, z, result, n_part):
 
 ## testing part over here
 
-def solver(n, number_makino, level, openmp=False, backend='cython'):
-    
-    if openmp:
-        get_config().use_openmp = True
-
+def solver(n, number_makino, level, backend='cython'):
 
     np.random.seed(0)
     rnd = np.random.random((3, n))
@@ -627,13 +623,34 @@ def solver(n, number_makino, level, openmp=False, backend='cython'):
     return direct_result, result, end_direct-end_tree, end_tree-start_tree
 
 
+if __name__ == "__main__":
 
-n = 2000
-number_makino = 4
-level = 4
-openmp = False
-backend = 'opencl'
-direct_result, result, time_direct, time_tree = solver(n, number_makino, level, openmp, backend)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", help="number of particles", type=int, default=1000)
+    parser.add_argument("-l", "--level", help="depth of tree",
+                        type=int, default=3)
+    parser.add_argument("-p", help="number of pseudoparticles to use",
+                        type=int, default=6)
+    parser.add_argument("-b", "--backend", help="backend to use",
+                        default='cython')
+    parser.add_argument("-omp", "--openmp", help="use openmp for calculations",
+                        action="store_true")
 
-print(time_direct/time_tree, time_tree)
-print(np.mean(np.abs(result-direct_result)/direct_result))
+    args = parser.parse_args()
+
+    if args.openmp:
+        get_config().use_openmp = True
+    
+    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.backend)
+
+    print("Speedup - ", time_direct/time_tree)
+    print("Time taken by tree - ", time_tree)
+    print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
+
+
+# n = 1000
+# number_makino = 4
+# level = 4
+# openmp = True
+# backend = 'cython'
+# direct_result, result, time_direct, time_tree = solver(n, number_makino, level, backend)
