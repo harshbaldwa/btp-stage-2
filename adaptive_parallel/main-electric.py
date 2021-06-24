@@ -628,11 +628,29 @@ def solver(n, number_makino, level, compare_parallel, backend='cython'):
         start_direct = time.time()
         edirect_solve(prop, x, y, z, direct_result, n)
         end_direct = time.time()
+        if backend == 'opencl':
+            direct_result.pull()
+            direct_result = direct_result.data
     else:
+        if backend == 'opencl':
+            direct_result.pull()
+            x.pull()
+            y.pull()
+            z.pull()
+            prop.pull()
+            direct_result = direct_result.data
+            x = x.data
+            y = y.data
+            z = z.data
+            prop = prop.data
         start_direct = time.time()
         for i in range(n):
             direct_solve(i, prop, x, y, z, direct_result, n)
         end_direct = time.time()
+
+    if backend == 'opencl':
+        result.pull()
+        result = result.data
 
     return direct_result, result, end_direct-start_tree, end_tree-start_tree
 
