@@ -413,7 +413,7 @@ def direct_solve(i, value, x, y, z, result, n_part):
 
 ## testing part over here
 
-def solver(n, number_makino, level, backend='cython'):
+def solver(n, number_makino, level, compare_parallel, backend='cython'):
 
     np.random.seed(0)
     rnd = np.random.random((3, n))
@@ -624,11 +624,17 @@ def solver(n, number_makino, level, backend='cython'):
 
     end_tree = time.time()
 
-    edirect_solve(prop, x, y, z, direct_result, n)
+    if compare_parallel:
+        start_direct = time.time()
+        edirect_solve(prop, x, y, z, direct_result, n)
+        end_direct = time.time()
+    else:
+        start_direct = time.time()
+        for i in range(n):
+            direct_solve(i, prop, x, y, z, direct_result, n)
+        end_direct = time.time()
 
-    end_direct = time.time()
-
-    return direct_result, result, end_direct-end_tree, end_tree-start_tree
+    return direct_result, result, end_direct-start_tree, end_tree-start_tree
 
 
 if __name__ == "__main__":
@@ -643,14 +649,17 @@ if __name__ == "__main__":
                         default='cython')
     parser.add_argument("-omp", "--openmp", help="use openmp for calculations",
                         action="store_true")
+    parser.add_argument("-pc", "--parallel_compare", help="whether to compare speedup with serial or parallel direct",
+                        action="store_true")
 
     args = parser.parse_args()
 
     if args.openmp:
         get_config().use_openmp = True
-    
-    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.backend)
 
-    # print("Speedup - ", time_direct/time_tree)
-    # print("Time taken by tree - ", time_tree)
+    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.parallel_compare, args.backend)
+
+    print("Speedup - ", time_direct/time_tree)
+    print("Time taken by tree - ", time_tree)
+    print("Time taken by direct - ", time_direct)
     print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
