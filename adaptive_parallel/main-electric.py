@@ -195,7 +195,6 @@ def calc_pseudoparticles(
     pseudo_value[i] = pseudo_result/number_makino
 
 
-# need to do this for all levels 1-finest (both included) (need Vb for level 2 as well)
 @annotate(
     i="int", gintp="associate_ids, level",
     gdoublep="cx, cy, cz", double="length, x_min, y_min, z_min"
@@ -281,12 +280,10 @@ def calc_z_list(i, num_loop, pid_start, inner_value, inner_x, inner_y, inner_z, 
         pid = indices[pid_start + n]
         inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
 
-# all arrays of level at which being calculated, associates id parent level
+
 @annotate(
     gdoublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz, part_value, part_x, part_y, part_z",
     int="i, level, number_makino", gintp="associate_ids, bin_count, indices, start", length="double"
-    # doublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz",
-    # int="i, level, number_makino", associate_ids="intp", length="double"
 )
 def local_coeff(
     i, inner_value, inner_x, inner_y, inner_z, 
@@ -300,7 +297,6 @@ def local_coeff(
     j, k, n = declare("int", 3)
     cell_radius = declare("double")
     cell_radius = sqrt(3.0)*length/(2.0**(level+1))
-    # cell_radius = length/(2**(level+1))
     cell_id = cast(floor(i*1.0 / number_makino), "int")
     parent_id = cell_id >> 3
     for j in range(26):
@@ -310,15 +306,9 @@ def local_coeff(
             for k in range(8):
                 if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], cell_radius) == 1):
                     calc_v_list(i, number_makino, child_id*number_makino, inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z)
-                    # for n in range(number_makino):
-                    #     pid = child_id*number_makino+n
-                    #     inner_value[i] += direct_computation(outer_value[pid], outer_x[pid], outer_y[pid], outer_z[pid], inner_x[i], inner_y[i], inner_z[i])
                 else:
                     if (is_adjacent(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], 2*cell_radius) == 0):
                         calc_z_list(i, bin_count[child_id], start[child_id], inner_value, inner_x, inner_y, inner_z, part_value, part_x, part_y, part_z, indices)
-                        # for n in range(bin_count[child_id]):
-                        #     pid = indices[start[child_id] + n]
-                        #     inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
                 child_id += 1
 
 
@@ -359,7 +349,7 @@ def local_expansion(
         
     return result/number_makino
 
-# give parent wala level
+
 @annotate(
     int="i, level, number_makino, l_limit",
     gdoublep="innerc_value, innerc_x, innerc_y, innerc_z, px, py, pz, innerp_value, innerp_x, innerp_y, innerp_z, l_list",
@@ -407,7 +397,6 @@ def compute_value(
         part_result[pid] += local_expansion(inner_value, inner_x, inner_y, inner_z, cx[i], cy[i], cz[i], part_x[pid], part_y[pid], part_z[pid], number_makino, level, length, i*number_makino, l_list, l_limit)
 
 
-# @annotate(int="i, n", gdoublep="value, x, y, z, result")
 @annotate(int="i, n_part", gdoublep="value, x, y, z, result")
 def direct_solve(i, value, x, y, z, result, n_part):
     j = declare("int")
@@ -416,8 +405,6 @@ def direct_solve(i, value, x, y, z, result, n_part):
             result[i] += direct_computation(value[j], x[j], y[j], z[j], x[i], y[i], z[i])
 
 
-
-## testing part over here
 
 def solver(n, number_makino, level, backend='cython'):
 
@@ -509,15 +496,12 @@ def solver(n, number_makino, level, backend='cython'):
     ecompute_value = Elementwise(compute_value, backend=backend)
     edirect_solve = Elementwise(direct_solve, backend=backend)
 
-
-    start_tree = time.time()
-
     x, y, z, prop, cx, cy, cz, level_list, outer_value, outer_x, outer_y, outer_z, inner_value, inner_x, inner_y, inner_z, associate_ids, sph_points, l_list, bin_count, start, bin_offset, indices, result, direct_result = wrap(x, y, z, prop, cx, cy, cz, level_list, outer_value, outer_x, outer_y, outer_z, inner_value, inner_x, inner_y, inner_z, associate_ids, sph_points, l_list, bin_count, start, bin_offset, indices, result, direct_result, backend=backend)
+    
+    start_tree = time.time()
 
     einitial_bin_count(bin_count)
     eget_bin_count(x, y, z, b_len, bin_count[sb[0]:sb[1]], bin_offset)
-    cum_bin_count(bin_count=bin_count[sb[0]:sb[1]], start_index=start[sb[0]:sb[1]])
-    estart_indices(x, y, z, b_len, bin_offset, start[sb[0]:sb[1]], indices)
 
     for l in range(level-1, 1, -1):
         s0 = sb[level-l-1]
@@ -525,8 +509,19 @@ def solver(n, number_makino, level, backend='cython'):
         s2 = sb[level-l+1]
 
         etransfer_bin_count(bin_count[s1:s2], bin_count[s0:s1])
-        cum_bin_count(bin_count=bin_count[s1:s2], start_index=start[s1:s2])
 
+    cum_bin_count(bin_count=bin_count, start_index=start)
+    start.pull()
+    start = start.data[:]
+    
+    for l in range(level-1, 1, -1):
+        s1 = sb[level-l]
+        s2 = sb[level-l+1]
+        start[s1:s2] -= start[s1-1]
+
+    start = wrap(start, backend=backend)
+
+    estart_indices(x, y, z, b_len, bin_offset, start[sb[0]:sb[1]], indices)
 
     esetting_pseudoparticles(
         cx[:-8], cy[:-8], cz[:-8], outer_x, outer_y, outer_z, 
@@ -548,10 +543,6 @@ def solver(n, number_makino, level, backend='cython'):
         bin_count[s0:s1], number_makino, length, level, l_limit, l_list
     )
 
-    print(cx[9], cy[9], cz[9])
-    for i in range(number_makino):
-        print("{0:.16f}".format(outer_value[9*number_makino+i]))
-
     for l in range(level-1, 1, -1):
         s0 = sb[level-l-1]
         s1 = sb[level-l]
@@ -569,7 +560,6 @@ def solver(n, number_makino, level, backend='cython'):
         )
 
 
-    # s0-s1 real level, s1-s2 parent level
     for l in range(2, level+1):
         s0 = sb[level-l]
         s1 = sb[level-l+1]
@@ -587,7 +577,6 @@ def solver(n, number_makino, level, backend='cython'):
         )
 
 
-    # # s0-s1 child level s1-s2 real level
     for l in range(2, level):
         s0 = sb[level-l-1]
         s1 = sb[level-l]
@@ -645,17 +634,11 @@ if __name__ == "__main__":
     if args.openmp:
         get_config().use_openmp = True
     
+    # get_config().use_double = True
+
     direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.backend)
 
     print("Speedup - ", time_direct/time_tree)
     print("Time taken by tree - ", time_tree)
     print("Time taken by direct - ", time_direct)
     print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
-
-
-# n = 1000
-# number_makino = 4
-# level = 4
-# openmp = True
-# backend = 'cython'
-# direct_result, result, time_direct, time_tree = solver(n, number_makino, level, backend)
