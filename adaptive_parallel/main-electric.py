@@ -413,7 +413,7 @@ def direct_solve(i, value, x, y, z, result, n_part):
 
 ## testing part over here
 
-def solver(n, number_makino, level, compare_parallel, backend='cython'):
+def solver(n, number_makino, level, compare_direct, compare_parallel, backend='cython'):
 
     np.random.seed(0)
     rnd = np.random.random((3, n))
@@ -624,35 +624,39 @@ def solver(n, number_makino, level, compare_parallel, backend='cython'):
 
     end_tree = time.time()
 
-    if compare_parallel:
-        start_direct = time.time()
-        edirect_solve(prop, x, y, z, direct_result, n)
-        end_direct = time.time()
-        if backend == 'opencl':
-            direct_result.pull()
-            direct_result = direct_result.data
-    else:
-        if backend == 'opencl':
-            direct_result.pull()
-            x.pull()
-            y.pull()
-            z.pull()
-            prop.pull()
-            direct_result = direct_result.data
-            x = x.data
-            y = y.data
-            z = z.data
-            prop = prop.data
-        start_direct = time.time()
-        for i in range(n):
-            direct_solve(i, prop, x, y, z, direct_result, n)
-        end_direct = time.time()
+    if compare_direct:
+        if compare_parallel:
+            start_direct = time.time()
+            edirect_solve(prop, x, y, z, direct_result, n)
+            end_direct = time.time()
+            if backend == 'opencl':
+                direct_result.pull()
+                direct_result = direct_result.data
+        else:
+            if backend == 'opencl':
+                direct_result.pull()
+                x.pull()
+                y.pull()
+                z.pull()
+                prop.pull()
+                direct_result = direct_result.data
+                x = x.data
+                y = y.data
+                z = z.data
+                prop = prop.data
+            start_direct = time.time()
+            for i in range(n):
+                direct_solve(i, prop, x, y, z, direct_result, n)
+            end_direct = time.time()
 
     if backend == 'opencl':
         result.pull()
         result = result.data
 
-    return direct_result, result, end_direct-start_tree, end_tree-start_tree
+    if compare_direct:
+        return direct_result, result, end_direct-start_tree, end_tree-start_tree
+    else:
+        return [], result, -1, end_tree-start_tree
 
 
 if __name__ == "__main__":
@@ -667,7 +671,9 @@ if __name__ == "__main__":
                         default='cython')
     parser.add_argument("-omp", "--openmp", help="use openmp for calculations",
                         action="store_true")
-    parser.add_argument("-pc", "--parallel_compare", help="whether to compare speedup with serial or parallel direct",
+    parser.add_argument("-cd", "--compare_direct", help="whether to compare with direct",
+                        action="store_true")                    
+    parser.add_argument("-cp", "--compare_parallel", help="whether to compare speedup with serial or parallel direct",
                         action="store_true")
 
     args = parser.parse_args()
@@ -675,9 +681,9 @@ if __name__ == "__main__":
     if args.openmp:
         get_config().use_openmp = True
 
-    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.parallel_compare, args.backend)
+    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.compare_direct, args.compare_parallel, args.backend)
 
-    print("Speedup - ", time_direct/time_tree)
+    # print("Speedup - ", time_direct/time_tree)
     print("Time taken by tree - ", time_tree)
-    print("Time taken by direct - ", time_direct)
-    print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
+    # print("Time taken by direct - ", time_direct)
+    # print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
