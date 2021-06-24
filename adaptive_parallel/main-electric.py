@@ -548,6 +548,10 @@ def solver(n, number_makino, level, backend='cython'):
         bin_count[s0:s1], number_makino, length, level, l_limit, l_list
     )
 
+    print(cx[9], cy[9], cz[9])
+    for i in range(number_makino):
+        print("{0:.16f}".format(outer_value[9*number_makino+i]))
+
     for l in range(level-1, 1, -1):
         s0 = sb[level-l-1]
         s1 = sb[level-l]
@@ -626,11 +630,11 @@ def solver(n, number_makino, level, backend='cython'):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", help="number of particles", type=int, default=1000)
+    parser.add_argument("-n", help="number of particles", type=int, default=10)
     parser.add_argument("-l", "--level", help="depth of tree",
                         type=int, default=3)
     parser.add_argument("-p", help="number of pseudoparticles to use",
-                        type=int, default=6)
+                        type=int, default=4)
     parser.add_argument("-b", "--backend", help="backend to use",
                         default='cython')
     parser.add_argument("-omp", "--openmp", help="use openmp for calculations",
@@ -645,6 +649,7 @@ if __name__ == "__main__":
 
     print("Speedup - ", time_direct/time_tree)
     print("Time taken by tree - ", time_tree)
+    print("Time taken by direct - ", time_direct)
     print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
 
 
