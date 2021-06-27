@@ -195,7 +195,6 @@ def calc_pseudoparticles(
     pseudo_value[i] = pseudo_result/number_makino
 
 
-# need to do this for all levels 1-finest (both included) (need Vb for level 2 as well)
 @annotate(
     i="int", gintp="associate_ids, level",
     gdoublep="cx, cy, cz", double="length, x_min, y_min, z_min"
@@ -239,11 +238,11 @@ def direct_computation(
     return value
 
 
-@annotate(double="cx, cy, cz, ax, ay, az, cell_radius", return_="int")
-def is_well_separated(cx, cy, cz, ax, ay, az, cell_radius):
+@annotate(double="cx, cy, cz, ax, ay, az, cell_dist", return_="int")
+def is_well_separated(cx, cy, cz, ax, ay, az, cell_dist):
     dist = declare("double", 2)
     dist = sqrt((cx-ax)**2+(cy-ay)**2+(cz-az)**2)
-    if (dist - 3*cell_radius) >= 0:
+    if (dist - cell_dist) >= 0:
         return 1
     else:
         return 0
@@ -281,12 +280,9 @@ def calc_z_list(i, num_loop, pid_start, inner_value, inner_x, inner_y, inner_z, 
         pid = indices[pid_start + n]
         inner_value[i] += direct_computation(part_value[pid], part_x[pid], part_y[pid], part_z[pid], inner_x[i], inner_y[i], inner_z[i])
 
-# all arrays of level at which being calculated, associates id parent level
 @annotate(
     gdoublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz, part_value, part_x, part_y, part_z",
     int="i, level, number_makino", gintp="associate_ids, bin_count, indices, start", length="double"
-    # doublep="inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z, cx, cy, cz",
-    # int="i, level, number_makino", associate_ids="intp", length="double"
 )
 def local_coeff(
     i, inner_value, inner_x, inner_y, inner_z, 
@@ -296,11 +292,10 @@ def local_coeff(
     bin_count, indices, start, 
     part_value, part_x, part_y, part_z
 ):
-    cell_id, parent_id, a_id, child_id, pid = declare("int", 5)
-    j, k, n = declare("int", 3)
+    cell_id, parent_id, a_id, child_id = declare("int", 4)
+    j, k = declare("int", 4)
     cell_radius = declare("double")
     cell_radius = sqrt(3.0)*length/(2.0**(level+1))
-    # cell_radius = length/(2**(level+1))
     cell_id = cast(floor(i*1.0 / number_makino), "int")
     parent_id = cell_id >> 3
     for j in range(26):
@@ -308,7 +303,7 @@ def local_coeff(
         if a_id != -1:
             child_id = a_id << 3
             for k in range(8):
-                if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], cell_radius) == 1):
+                if (is_well_separated(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], 3*cell_radius) == 1):
                     calc_v_list(i, number_makino, child_id*number_makino, inner_value, inner_x, inner_y, inner_z, outer_value, outer_x, outer_y, outer_z)
                 else:
                     if (is_adjacent(cx[cell_id], cy[cell_id], cz[cell_id], cx[child_id], cy[child_id], cz[child_id], 2*cell_radius) == 0):
@@ -353,7 +348,6 @@ def local_expansion(
         
     return result/number_makino
 
-# give parent wala level
 @annotate(
     int="i, level, number_makino, l_limit",
     gdoublep="innerc_value, innerc_x, innerc_y, innerc_z, px, py, pz, innerp_value, innerp_x, innerp_y, innerp_z, l_list",
@@ -401,7 +395,6 @@ def compute_value(
         part_result[pid] += local_expansion(inner_value, inner_x, inner_y, inner_z, cx[i], cy[i], cz[i], part_x[pid], part_y[pid], part_z[pid], number_makino, level, length, i*number_makino, l_list, l_limit)
 
 
-# @annotate(int="i, n", gdoublep="value, x, y, z, result")
 @annotate(int="i, n_part", gdoublep="value, x, y, z, result")
 def direct_solve(i, value, x, y, z, result, n_part):
     j = declare("int")
@@ -411,9 +404,9 @@ def direct_solve(i, value, x, y, z, result, n_part):
 
 
 
-## testing part over here
-
 def solver(n, number_makino, level, compare_direct, compare_parallel, backend='cython'):
+
+    LEVEL_MAX = 8
 
     np.random.seed(0)
     rnd = np.random.random((3, n))
@@ -431,7 +424,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
 
     total_blocks = int(64 * (8 ** (level - 1) - 1) / 7)
 
-    wasteblocks = 8 ** (level + 1) * int((8 ** (8 - level) - 1) / 7)
+    wasteblocks = 8 ** (level + 1) * int((8 ** (LEVEL_MAX - level) - 1) / 7)
     npzfile = np.load("centers.npz")
     cx = npzfile["cx"]
     cy = npzfile["cy"]
@@ -510,7 +503,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
 
     einitial_bin_count(bin_count)
     eget_bin_count(x, y, z, b_len, bin_count[sb[0]:sb[1]], bin_offset)
-    
+
     for l in range(level-1, 1, -1):
         s0 = sb[level-l-1]
         s1 = sb[level-l]
@@ -525,11 +518,10 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         start = start.data
 
     for l in range(level-1, 1, -1):
-        s0 = sb[level-l-1]
         s1 = sb[level-l]
         s2 = sb[level-l+1]
 
-        start[s1:s2] -= start[s1-1]
+        start[s1:s2] -= start[s1]
 
     if backend == 'opencl':
         start = wrap(start, backend=backend)
@@ -573,7 +565,6 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         )
 
 
-    # s0-s1 real level, s1-s2 parent level
     for l in range(2, level+1):
         s0 = sb[level-l]
         s1 = sb[level-l+1]
@@ -591,7 +582,6 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         )
 
 
-    # # s0-s1 child level s1-s2 real level
     for l in range(2, level):
         s0 = sb[level-l-1]
         s1 = sb[level-l]
@@ -654,7 +644,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         result = result.data
 
     if compare_direct:
-        return direct_result, result, end_direct-start_tree, end_tree-start_tree
+        return direct_result, result, end_direct-start_direct, end_tree-start_tree
     else:
         return [], result, -1, end_tree-start_tree
 
@@ -683,7 +673,8 @@ if __name__ == "__main__":
 
     direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.compare_direct, args.compare_parallel, args.backend)
 
-    # print("Speedup - ", time_direct/time_tree)
     print("Time taken by tree - ", time_tree)
-    # print("Time taken by direct - ", time_direct)
-    # print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))
+    if args.compare_direct:
+        print("Time taken by direct - ", time_direct)
+        print("Speedup - ", time_direct/time_tree)
+        print("Relative Error - ", np.mean(np.abs(result-direct_result)/direct_result))

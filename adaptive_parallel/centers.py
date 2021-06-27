@@ -15,7 +15,7 @@ offset = 0
 
 for level in range(LEVEL, 0, -1):
     for idx in range(8**level):
-        a = format(idx, '060b')
+        a = format(idx, '024b')
         x = int(a[2::3], 2)
         y = int(a[1::3], 2)
         z = int(a[::3], 2)
