@@ -511,7 +511,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
     t_time = 0
     t_count = 0
 
-    if (t_time < 1):
+    while (t_time < 1):
         start_tree = time.time()
 
         if t_count == 0:
@@ -635,7 +635,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         d_count = 0
 
         if compare_parallel:
-            if d_time < 0.5:
+            while d_time < 1:
                 start_direct = time.time()
                 edirect_solve(prop, x, y, z, direct_result, n)
                 end_direct = time.time()
