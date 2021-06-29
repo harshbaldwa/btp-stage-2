@@ -511,7 +511,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
     t_time = 0
     t_count = 0
 
-    while (t_time < 1):
+    while (t_time < 0.5):
         start_tree = time.time()
 
         if t_count == 0:
@@ -628,7 +628,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         t_count += 1
 
     t_time = t_time/t_count
-
+    
     if compare_direct:
         
         d_time = 0
@@ -704,9 +704,7 @@ if __name__ == "__main__":
 
     level = int(log(args.n)/log(8))
 
-    print(args.level or level)
-
-    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level or level, args.compare_direct, args.compare_parallel, args.backend)
+    direct_result, result, time_direct, time_tree = solver(args.n, args.p, level, args.compare_direct, args.compare_parallel, args.backend)
 
     print("Time taken by Anderson - ", time_tree)
     
