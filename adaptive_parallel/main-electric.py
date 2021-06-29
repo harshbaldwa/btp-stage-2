@@ -519,19 +519,12 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
 
     cum_bin_count(bin_count=bin_count, start_index=start)
 
-    # if backend == 'opencl':
-    #     start.pull()
-    #     start = start.data
-
     for l in range(level-1, 1, -1):
         s1 = sb[level-l]
         s2 = sb[level-l+1]
 
         estart_manipulation(start[s1:s2], start[s1])
-        # start[s1:s2] -= start[s1]
 
-    # if backend == 'opencl':
-    #     start = wrap(start, backend=backend)
 
     estart_indices(x, y, z, b_len, bin_offset, start[sb[0]:sb[1]], indices)
 
