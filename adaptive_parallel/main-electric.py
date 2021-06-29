@@ -2,7 +2,7 @@ from compyle.api import annotate, wrap, Elementwise, Scan, get_config
 from compyle.types import declare
 from compyle.low_level import cast, atomic_inc
 from compyle.parallel import serial
-from math import sqrt, floor
+from math import sqrt, floor, log
 
 from spherical_points import spherical_points
 from scipy.special import legendre
@@ -70,6 +70,11 @@ def input_bin_count(i, bin_count):
 @annotate(int="i, item", start_index="gintp")
 def output_bin_count(i, item, start_index):
     start_index[i] = item
+
+
+@annotate(int="i, start_term", start="gintp")
+def start_manipulation(i, start, start_term):
+    start[i] -= start_term
 
 
 @annotate(
@@ -409,10 +414,10 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
     LEVEL_MAX = 8
 
     np.random.seed(0)
-    rnd = np.random.random((3, n))
-    x = rnd[0]
-    y = rnd[1]
-    z = rnd[2]
+    rnd = np.random.random((n, 3))
+    x = rnd[:, 0]
+    y = rnd[:, 1]
+    z = rnd[:, 2]
 
     prop = np.ones(n)
 
@@ -486,6 +491,7 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
         input_bin_count, output_bin_count, "a+b", dtype=np.int32, 
         backend=backend
     )
+    estart_manipulation = Elementwise(start_manipulation, backend=backend)
     estart_indices = Elementwise(start_indices, backend=backend)
     esetting_pseudoparticles = Elementwise(setting_pseudoparticles, backend=backend)
     ecalc_pseudoparticles_fine = Elementwise(calc_pseudoparticles_fine, backend=backend)
@@ -513,18 +519,19 @@ def solver(n, number_makino, level, compare_direct, compare_parallel, backend='c
 
     cum_bin_count(bin_count=bin_count, start_index=start)
 
-    if backend == 'opencl':
-        start.pull()
-        start = start.data
+    # if backend == 'opencl':
+    #     start.pull()
+    #     start = start.data
 
     for l in range(level-1, 1, -1):
         s1 = sb[level-l]
         s2 = sb[level-l+1]
 
-        start[s1:s2] -= start[s1]
+        estart_manipulation(start[s1:s2], start[s1])
+        # start[s1:s2] -= start[s1]
 
-    if backend == 'opencl':
-        start = wrap(start, backend=backend)
+    # if backend == 'opencl':
+    #     start = wrap(start, backend=backend)
 
     estart_indices(x, y, z, b_len, bin_offset, start[sb[0]:sb[1]], indices)
 
@@ -654,7 +661,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", help="number of particles", type=int, default=10000)
     parser.add_argument("-l", "--level", help="depth of tree",
-                        type=int, default=3)
+                        type=int, default=5)
     parser.add_argument("-p", help="number of pseudoparticles to use",
                         type=int, default=6)
     parser.add_argument("-b", "--backend", help="backend to use",
@@ -673,7 +680,8 @@ if __name__ == "__main__":
 
     direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.compare_direct, args.compare_parallel, args.backend)
 
-    print("Time taken by tree - ", time_tree)
+    print("Time taken by Anderson - ", time_tree)
+    
     if args.compare_direct:
         print("Time taken by direct - ", time_direct)
         print("Speedup - ", time_direct/time_tree)
