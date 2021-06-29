@@ -702,7 +702,11 @@ if __name__ == "__main__":
     if args.openmp:
         get_config().use_openmp = True
 
-    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level, args.compare_direct, args.compare_parallel, args.backend)
+    level = int(log(args.n)/log(8))
+
+    print(args.level or level)
+
+    direct_result, result, time_direct, time_tree = solver(args.n, args.p, args.level or level, args.compare_direct, args.compare_parallel, args.backend)
 
     print("Time taken by Anderson - ", time_tree)
     
